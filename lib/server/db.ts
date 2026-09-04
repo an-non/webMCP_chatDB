@@ -144,6 +144,19 @@ export async function attachFile(workspaceId: string, recordId: string, file: { 
   return getRecord(workspaceId, recordId);
 }
 
+export async function consumeOAuthAuthorizationCode(workspaceId: string, nonce: string) {
+  await ensureWorkspace(workspaceId);
+  const result = await env.DB.prepare(`
+    INSERT INTO audit_events(id, workspace_id, actor, tool_name, record_id, detail_json)
+    SELECT ?, ?, 'oauth', 'oauth_authorization_code_redeemed', ?, '{}'
+    WHERE NOT EXISTS (
+      SELECT 1 FROM audit_events
+      WHERE workspace_id=? AND actor='oauth' AND tool_name='oauth_authorization_code_redeemed' AND record_id=?
+    )
+  `).bind(crypto.randomUUID(), workspaceId, nonce, workspaceId, nonce).run();
+  return Boolean(result.meta.changes);
+}
+
 async function audit(workspaceId: string, actor: string, toolName: string, recordId: string | null, detail: unknown) {
   await env.DB.prepare('INSERT INTO audit_events(id, workspace_id, actor, tool_name, record_id, detail_json) VALUES (?, ?, ?, ?, ?, ?)')
     .bind(crypto.randomUUID(), workspaceId, actor, toolName, recordId, JSON.stringify(detail ?? {})).run();
