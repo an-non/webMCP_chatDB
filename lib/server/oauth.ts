@@ -6,6 +6,8 @@ export type DialogMcpScope = (typeof DIALOG_MCP_SCOPES)[number];
 export type OAuthRuntimeConfig = {
   workspaceId?: string;
   signingSecret?: string;
+  approvalCode?: string;
+  subject?: string;
   allowedEmails: string[];
 };
 
@@ -26,7 +28,7 @@ type AuthorizationCodeClaims = {
   resource: string;
   scope: string;
   workspaceId: string;
-  email: string;
+  subject: string;
   nonce: string;
 };
 
@@ -56,7 +58,7 @@ type RefreshTokenClaims = {
 };
 
 export type VerifiedOAuthAccess = {
-  email: string;
+  subject: string;
   workspaceId: string;
   clientId: string;
   scopes: string[];
@@ -67,6 +69,8 @@ export function getOAuthRuntimeConfig(): OAuthRuntimeConfig {
   return {
     workspaceId: value('REMOTE_MCP_WORKSPACE_ID'),
     signingSecret,
+    approvalCode: value('REMOTE_MCP_OAUTH_APPROVAL_CODE'),
+    subject: value('REMOTE_MCP_OAUTH_SUBJECT'),
     allowedEmails: (value('REMOTE_MCP_OAUTH_ALLOWED_EMAILS') ?? '')
       .split(',')
       .map((item) => item.trim().toLowerCase())
@@ -75,7 +79,7 @@ export function getOAuthRuntimeConfig(): OAuthRuntimeConfig {
 }
 
 export function oauthRuntimeConfigured(config = getOAuthRuntimeConfig()) {
-  return Boolean(config.workspaceId && config.signingSecret);
+  return Boolean(config.workspaceId && config.signingSecret && (config.approvalCode || config.allowedEmails.length));
 }
 
 export function canonicalMcpResource(request: Request) {
@@ -92,9 +96,18 @@ export function authenticatedSiteUser(request: Request, config = getOAuthRuntime
   if (!email) return null;
   if (config.allowedEmails.length && !config.allowedEmails.includes(email)) return null;
   return {
-    email,
+    subject: email,
     name: (request.headers.get('oai-authenticated-user-full-name') ?? '').trim() || email,
   };
+}
+
+export async function approvalCodeValid(candidate: string, config = getOAuthRuntimeConfig()) {
+  if (!config.approvalCode || !candidate) return false;
+  return constantTimeEqual(candidate, config.approvalCode);
+}
+
+export function approvalCodeSubject(config = getOAuthRuntimeConfig()) {
+  return config.subject || config.allowedEmails[0] || 'dialog-index-owner';
 }
 
 export async function issueRegisteredClient(input: { redirectUris: string[]; clientName?: string }, secret: string) {
@@ -112,7 +125,12 @@ export async function verifyRegisteredClient(clientId: string, secret: string): 
   if (!claims || claims.typ !== 'oauth_client' || !Array.isArray(claims.redirectUris)) return null;
   const redirectUris = claims.redirectUris.filter((uri: unknown): uri is string => typeof uri === 'string' && validRedirectUri(uri));
   if (!redirectUris.length) return null;
-  return { typ: 'oauth_client', iat: Number(claims.iat ?? 0), redirectUris, clientName: typeof claims.clientName === 'string' ? claims.clientName : undefined };
+  return {
+    typ: 'oauth_client',
+    iat: Number(claims.iat ?? 0),
+    redirectUris,
+    clientName: typeof claims.clientName === 'string' ? claims.clientName : undefined,
+  };
 }
 
 export async function issueAuthorizationCode(input: {
@@ -122,19 +140,19 @@ export async function issueAuthorizationCode(input: {
   resource: string;
   scope: string;
   workspaceId: string;
-  email: string;
+  subject: string;
 }, secret: string) {
   const claims: AuthorizationCodeClaims = {
     typ: 'authorization_code',
     iat: now(),
-    exp: now() + 300,
+    exp: now() + 180,
     clientId: input.clientId,
     redirectUri: input.redirectUri,
     codeChallenge: input.codeChallenge,
     resource: input.resource,
     scope: normalizeScope(input.scope).join(' '),
     workspaceId: input.workspaceId,
-    email: input.email,
+    subject: input.subject,
     nonce: crypto.randomUUID(),
   };
   return signCompact(claims, secret, 'DIALOG-OAUTH-CODE');
@@ -147,6 +165,7 @@ export async function redeemAuthorizationCode(input: {
   codeVerifier: string;
   resource: string;
   issuer: string;
+  consumeNonce?: (nonce: string, workspaceId: string) => Promise<boolean>;
 }, secret: string) {
   const claims = await verifyCompact(input.code, secret, 'DIALOG-OAUTH-CODE');
   if (!claims || claims.typ !== 'authorization_code') throw new OAuthError('invalid_grant', 'Invalid authorization code');
@@ -158,10 +177,14 @@ export async function redeemAuthorizationCode(input: {
     throw new OAuthError('invalid_grant', 'PKCE verification failed');
   }
   const workspaceId = String(claims.workspaceId ?? '');
-  const email = String(claims.email ?? '');
+  const subject = String(claims.subject ?? '');
+  const nonce = String(claims.nonce ?? '');
   const scope = normalizeScope(String(claims.scope ?? '')).join(' ');
-  if (!workspaceId || !email) throw new OAuthError('invalid_grant', 'Authorization code missing subject');
-  return issueTokenPair({ clientId: input.clientId, workspaceId, email, scope, resource: input.resource, issuer: input.issuer }, secret);
+  if (!workspaceId || !subject || !nonce) throw new OAuthError('invalid_grant', 'Authorization code missing subject');
+  if (input.consumeNonce && !(await input.consumeNonce(nonce, workspaceId))) {
+    throw new OAuthError('invalid_grant', 'Authorization code already redeemed');
+  }
+  return issueTokenPair({ clientId: input.clientId, workspaceId, subject, scope, resource: input.resource, issuer: input.issuer }, secret);
 }
 
 export async function redeemRefreshToken(input: {
@@ -183,7 +206,7 @@ export async function redeemRefreshToken(input: {
   return issueTokenPair({
     clientId: input.clientId,
     workspaceId: String(claims.workspaceId ?? ''),
-    email: String(claims.sub ?? ''),
+    subject: String(claims.sub ?? ''),
     scope: requested.join(' '),
     resource: input.resource,
     issuer: input.issuer,
@@ -198,10 +221,10 @@ export async function verifyOAuthAccessToken(token: string, request: Request, se
   if (claims.iss !== issuer || claims.aud !== resource || Number(claims.exp ?? 0) <= now()) return null;
   const workspaceId = String(claims.workspaceId ?? '');
   if (!workspaceId || (expectedWorkspaceId && workspaceId !== expectedWorkspaceId)) return null;
-  const email = String(claims.sub ?? '');
+  const subject = String(claims.sub ?? '');
   const clientId = String(claims.clientId ?? '');
-  if (!email || !clientId) return null;
-  return { email, workspaceId, clientId, scopes: normalizeScope(String(claims.scope ?? '')) };
+  if (!subject || !clientId) return null;
+  return { subject, workspaceId, clientId, scopes: normalizeScope(String(claims.scope ?? '')) };
 }
 
 export function normalizeScope(scope: string): string[] {
@@ -228,7 +251,7 @@ export class OAuthError extends Error {
 async function issueTokenPair(input: {
   clientId: string;
   workspaceId: string;
-  email: string;
+  subject: string;
   scope: string;
   resource: string;
   issuer: string;
@@ -240,7 +263,7 @@ async function issueTokenPair(input: {
     exp: now() + 3600,
     iss: input.issuer,
     aud: input.resource,
-    sub: input.email,
+    sub: input.subject,
     scope: scopes.join(' '),
     workspaceId: input.workspaceId,
     clientId: input.clientId,
@@ -259,7 +282,7 @@ async function issueTokenPair(input: {
       exp: now() + 60 * 60 * 24 * 30,
       iss: input.issuer,
       aud: input.resource,
-      sub: input.email,
+      sub: input.subject,
       scope: scopes.join(' '),
       workspaceId: input.workspaceId,
       clientId: input.clientId,
@@ -285,9 +308,7 @@ async function signCompact(payload: Record<string, unknown>, secret: string, pur
 async function verifyCompact(token: string, secret: string, purpose: string): Promise<Record<string, unknown> | null> {
   const [body, signature, extra] = token.split('.');
   if (!body || !signature || extra) return null;
-  const expected = await hmac(`${purpose}.${body}`, secret);
   const actual = fromBase64url(signature);
-  if (actual.length !== expected.length) return null;
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['verify']);
   const ok = await crypto.subtle.verify('HMAC', key, actual, encoder.encode(`${purpose}.${body}`));
   if (!ok) return null;
@@ -301,6 +322,14 @@ async function verifyCompact(token: string, secret: string, purpose: string): Pr
 async function hmac(valueToSign: string, secret: string) {
   const key = await crypto.subtle.importKey('raw', encoder.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
   return new Uint8Array(await crypto.subtle.sign('HMAC', key, encoder.encode(valueToSign)));
+}
+
+async function constantTimeEqual(left: string, right: string) {
+  const leftDigest = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(left)));
+  const rightDigest = new Uint8Array(await crypto.subtle.digest('SHA-256', encoder.encode(right)));
+  let difference = 0;
+  for (let index = 0; index < leftDigest.length; index += 1) difference |= leftDigest[index] ^ rightDigest[index];
+  return difference === 0;
 }
 
 function base64url(bytes: Uint8Array) {
