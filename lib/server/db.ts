@@ -144,7 +144,7 @@ export async function attachFile(workspaceId: string, recordId: string, file: { 
   return getRecord(workspaceId, recordId);
 }
 
-export async function consumeOAuthAuthorizationCode(workspaceId: string, nonce: string) {
+export async function consumeOAuthAuthorizationCode(nonce: string, workspaceId: string) {
   await ensureWorkspace(workspaceId);
   const result = await env.DB.prepare(`
     INSERT INTO audit_events(id, workspace_id, actor, tool_name, record_id, detail_json)
