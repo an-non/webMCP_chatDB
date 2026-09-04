@@ -1,0 +1,34 @@
+既存のDialog Index Sites projectだけを更新する。
+
+入力:
+- このsource一式
+- project_id: appgprj_6a977c8675a08191b54f3849ee9f1653
+- production URL: https://dialog-index-mcp.mars-inc-7675.chatgpt.site
+
+禁止:
+- 新しいSite/D1/R2を作らない
+- DB/R2 binding名を変えない (`DB` / `FILES`)
+- drizzle/db schema/migration/既存データを変更しない
+- 11 WebMCP toolの名前・schemaを変更しない
+- `/mcp` endpointを変更しない
+- SEISEKIや別Siteを変更しない
+
+実行:
+1. `npm install`
+2. `npm run validate`
+3. `npm run typecheck`
+4. `npm run build`
+5. 既存projectへ新versionとして保存
+6. productionへdeploy
+7. productionで実records/indexes、D1/R2 health、WebMCP ready/11を確認
+8. ChatGPT desktop built-in browserでSite Tools 11件を確認
+9. Site Toolで一件save -> search -> get -> soft-deleteし、Tank UI/activity更新を確認
+10. `npm run probe:production`を実行し結果JSONを保存
+
+Remote MCP:
+- 未認証401/未設定503を確認
+- tokenはチャットやコードに貼らず、ローカル環境変数からauthenticated probeを実行
+- `initialize`, `tools/list` 11件, `get_dialog_index_overview`を確認
+- `/api/health`の`workspaceMatchesSession`がtrueであることを確認
+
+ordinary ChatGPT Custom App接続は別gate。static BearerをOAuth完成扱いにしない。
