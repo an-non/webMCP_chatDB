@@ -1,3 +1,4 @@
+'use server';
 import {
   approvalCodeSubject,
   approvalCodeValid,
@@ -52,8 +53,7 @@ export async function POST(request: Request) {
   if (validation) return text(validation, 400);
 
   const siteUser = authenticatedSiteUser(request, config);
-  const approvalCode = String(form.get('approval_code') ?? '');
-  const approvedByCode = await approvalCodeValid(approvalCode, config);
+  const approvedByCode = await approvalCodeValid(String(form.get('approval_code') ?? ''), config);
   const subject = siteUser?.subject ?? (approvedByCode ? approvalCodeSubject(config) : null);
   if (!subject) return text('Authorization denied. Sign in to this Site with an allowed account or enter the configured approval code.', 403);
 
@@ -121,13 +121,13 @@ function renderConsent(params: Params, alreadyAuthenticated: boolean, name?: str
     ['resource', params.resource],
     ['scope', params.scope],
     ['state', params.state],
-  ].map(([name, value]) => `<input type="hidden" name="${escape(name)}" value="${escape(value)}">`).join('');
+  ].map(([fieldName, value]) => `<input type="hidden" name="${escape(fieldName)}" value="${escape(value)}">`).join('');
 
   const identity = alreadyAuthenticated
     ? `<p class="ok">Signed in as ${escape(name ?? 'allowed user')}.</p>`
     : `<label>Approval code<input name="approval_code" type="password" autocomplete="one-time-code" required></label><p class="hint">Enter the private approval code configured in the Site environment. Do not paste this code into chat or source files.</p>`;
 
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Authorize Dialog Index</title><style>body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f7f7f4;color:#171717;margin:0;padding:32px}.card{max-width:620px;margin:auto;background:white;border:1px solid #d8d8d2;border-radius:18px;padding:28px;box-shadow:0 8px 36px rgba(0,0,0,.06)}h1{font-size:22px;margin-top:0}code{background:#f1f1ec;padding:2px 6px;border-radius:6px}label{display:grid;gap:8px;margin:20px 0;font-weight:600}input{font:inherit;padding:11px;border:1px solid #bdbdb7;border-radius:10px}.scopes{padding:14px;background:#f7f7f4;border-radius:12px;line-height:1.7}.hint{font-size:12px;color:#666}.ok{color:#17643b}.actions{display:flex;gap:10px;margin-top:22px}button{font:inherit;padding:11px 16px;border-radius:10px;border:1px solid #222;background:#111;color:white;cursor:pointer}</style></head><body><main class="card"><h1>Authorize Dialog Index</h1><p>ChatGPT is requesting access to this Dialog Index workspace.</p><div class="scopes"><strong>Requested scopes</strong><br>${escape(params.scope)}</div>${identity}<form method="post">${fields}${alreadyAuthenticated ? '' : '<input type="hidden" name="approval_present" value="1">'}${alreadyAuthenticated ? '' : ''}<div class="actions"><button type="submit">Allow access</button></div></form></main></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Authorize Dialog Index</title><style>body{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#f7f7f4;color:#171717;margin:0;padding:32px}.card{max-width:620px;margin:auto;background:white;border:1px solid #d8d8d2;border-radius:18px;padding:28px;box-shadow:0 8px 36px rgba(0,0,0,.06)}h1{font-size:22px;margin-top:0}label{display:grid;gap:8px;margin:20px 0;font-weight:600}input{font:inherit;padding:11px;border:1px solid #bdbdb7;border-radius:10px}.scopes{padding:14px;background:#f7f7f4;border-radius:12px;line-height:1.7}.hint{font-size:12px;color:#666}.ok{color:#17643b}.actions{display:flex;gap:10px;margin-top:22px}button{font:inherit;padding:11px 16px;border-radius:10px;border:1px solid #222;background:#111;color:white;cursor:pointer}</style></head><body><main class="card"><h1>Authorize Dialog Index</h1><p>ChatGPT is requesting access to this Dialog Index workspace.</p><div class="scopes"><strong>Requested scopes</strong><br>${escape(params.scope)}</div><form method="post">${fields}${identity}<div class="actions"><button type="submit">Allow access</button></div></form></main></body></html>`;
 }
 
 function escape(value: string) {
