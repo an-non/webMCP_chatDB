@@ -1,6 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { DIALOG_TOOL_DEFINITIONS } from '@/lib/dialog-tools';
 import { aiStatus } from '@/lib/server/ai';
+import { getOAuthRuntimeConfig, oauthRuntimeConfigured } from '@/lib/server/oauth';
 import { getRemoteMcpConfig, remoteMcpConfigured } from '@/lib/server/remote-mcp';
 import { reply, ws } from '@/lib/server/http';
 import { ensureSchema } from '@/lib/server/schema';
@@ -16,9 +17,12 @@ export async function GET(request: Request) {
   const db = state('DB', dbResult);
   const files = state('FILES', filesResult);
   const config = getRemoteMcpConfig();
+  const oauth = getOAuthRuntimeConfig();
   const remoteConfigured = remoteMcpConfigured(config);
+  const oauthConfigured = oauthRuntimeConfigured(oauth);
   const origin = new URL(request.url).origin;
   const workspaceMatchesSession = remoteConfigured ? config.workspaceId === session.id : null;
+  const modes = [config.token ? 'static-bearer' : null, oauthConfigured ? 'oauth2-pkce' : null].filter(Boolean);
 
   return reply(request, {
     ok: db.ok && files.ok,
@@ -31,8 +35,11 @@ export async function GET(request: Request) {
       endpoint: `${origin}/mcp`,
       toolCount: remoteConfigured ? DIALOG_TOOL_DEFINITIONS.length : 0,
       authentication: {
-        scheme: 'static-bearer',
-        configured: Boolean(config.token),
+        modes,
+        staticBearerConfigured: Boolean(config.token),
+        oauthConfigured,
+        protectedResourceMetadata: `${origin}/.well-known/oauth-protected-resource`,
+        authorizationServerMetadata: `${origin}/.well-known/oauth-authorization-server`,
         workspaceConfigured: Boolean(config.workspaceId),
         workspaceMatchesSession,
       },
