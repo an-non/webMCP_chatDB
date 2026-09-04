@@ -1,5 +1,5 @@
 import { DIALOG_TOOL_DEFINITIONS, isDialogToolName, type DialogToolInput, type DialogToolName } from '../dialog-tools.ts';
-import { getOAuthRuntimeConfig, verifyOAuthAccessToken } from './oauth';
+import { getOAuthRuntimeConfig, oauthRuntimeConfigured, verifyOAuthAccessToken } from './oauth';
 
 export const MCP_PROTOCOL_VERSION = '2025-06-18';
 const SUPPORTED_PROTOCOL_VERSIONS = new Set(['2025-03-26', '2025-06-18']);
@@ -28,8 +28,7 @@ export function getRemoteMcpConfig(): RemoteMcpConfig {
 }
 
 export function remoteMcpConfigured(config = getRemoteMcpConfig()) {
-  const oauth = getOAuthRuntimeConfig();
-  return Boolean(config.workspaceId && (config.token || oauth.signingSecret));
+  return Boolean(config.workspaceId && (config.token || oauthRuntimeConfigured()));
 }
 
 export function remoteMcpAuthenticated(request: Request, config = getRemoteMcpConfig()) {
@@ -109,7 +108,7 @@ async function authenticateRemoteMcp(request: Request, config: RemoteMcpConfig):
     return { kind: 'static-bearer', workspaceId: config.workspaceId, scopes: ['dialog.read', 'dialog.write', 'offline_access'] };
   }
   const oauth = getOAuthRuntimeConfig();
-  if (!oauth.signingSecret) return null;
+  if (!oauthRuntimeConfigured(oauth) || !oauth.signingSecret) return null;
   const access = await verifyOAuthAccessToken(token, request, oauth.signingSecret, config.workspaceId);
   if (!access) return null;
   return { kind: 'oauth', workspaceId: access.workspaceId, scopes: access.scopes, subject: access.subject };
