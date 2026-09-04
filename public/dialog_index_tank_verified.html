@@ -1,0 +1,1440 @@
+<!doctype html>
+<html lang="en" data-theme="white">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dialog Index Tank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&display=swap">
+<style>
+/* ============================================================
+   Dialog Index — tank edition
+   The centred UI is a terminal window; its interior is the sea.
+   Each function keeps its own frame with its name cut into the
+   border, opaque, so it reads as a panel over the water rather
+   than as more command line.
+   ============================================================ */
+:root{
+  color-scheme: light;
+
+  /* outside the CUI — the base treatment, unchanged across the colour set */
+  --page:    #F1F2F2;
+  --fish-ink:#12161A;
+  --gap:     18px;
+  --core:    min(880px, calc(100vw - 32px));
+  --half-core: 440px;
+
+  /* the tank */
+  --water:   #FBFBFB;
+  --chrome:  #F4F5F5;
+  --surface: #FFFFFF;
+  --sel:     #F2F4F3;
+  --head:    #F3F5F5;
+  --rule:    #DFE2E4;
+  --rule-2:  #CBD0D4;
+
+  --fg-strong:#12161A;
+  --fg:      #1F2429;
+  --muted:   #5C666F;
+  --dim:     #8A939B;
+  --live:    #1F6B4F;
+  --live-line:#B9D3C7;
+
+  /* palette the glyph engine resolves at startup — do not rename */
+  --paper:   #FBFBFB;
+  --ink-2:   #5C666F;
+  --sea-1:#D3D9DD; --sea-2:#DDE2E5; --sea-3:#E5E9EB; --sea-4:#ECEFF0; --sea-5:#F2F4F4;
+  --fish-1:#5F6B75; --fish-2:#828E98; --fish-3:#A6B0B8; --fish-4:#C4CBD1;
+  --wake-1:#E2E6E8; --wake-2:#EFF1F2;
+
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+
+/* compact theme switch: the white edition stays the source of truth. */
+:root[data-theme="whiteblue"]{
+  color-scheme:light;--page:#F1F2F2;--fish-ink:#0B4FA8;
+  --water:#E9EEF4;--chrome:#E1E8F0;--surface:#F4F7FB;--sel:#DCE7F6;--head:#E4EBF3;--rule:#CBD7E3;--rule-2:#A9BACC;
+  --fg-strong:#080C11;--fg:#11161C;--muted:#3B4653;--dim:#6E7A87;--live:#0B57C4;--live-line:#A7C3E8;
+  --paper:#E9EEF4;--ink-2:#52657A;--sea-1:#B9C7D6;--sea-2:#C7D3E0;--sea-3:#D4DDE7;--sea-4:#DEE5ED;--sea-5:#E4E9F0;
+  --fish-1:#0B4FA8;--fish-2:#1F6BC4;--fish-3:#5590D6;--fish-4:#9BBBE2;--wake-1:#C2D1E1;--wake-2:#D8E1EB;
+}
+:root[data-theme="whiteorange"]{
+  color-scheme:light;--page:#F1F2F2;--fish-ink:#E8590C;
+  --water:#FBF9F6;--chrome:#F5F2EC;--surface:#FFFEFC;--sel:#FBEEE2;--head:#F6F1E9;--rule:#E7E1D8;--rule-2:#D8D1C5;
+  --fg-strong:#0F0C09;--fg:#1A1613;--muted:#453F37;--dim:#857D73;--live:#E8590C;--live-line:#F2BE94;
+  --paper:#FBF9F6;--ink-2:#6E675E;--sea-1:#D2CBBF;--sea-2:#DDD7CD;--sea-3:#E6E1D9;--sea-4:#EEEAE4;--sea-5:#F5F2EE;
+  --fish-1:#E8590C;--fish-2:#EE7B27;--fish-3:#F3A05E;--fish-4:#F7C79C;--wake-1:#E3D6C7;--wake-2:#EFE8DE;
+}
+:root[data-theme="black"]{
+  color-scheme:dark;--page:#05070A;--fish-ink:#FFFFFF;
+  --water:#0A0D11;--chrome:#0E1318;--surface:#10151A;--sel:#161C22;--head:#131A20;--rule:#1C232B;--rule-2:#2A333C;
+  --fg-strong:#F2F6F9;--fg:#DDE4EA;--muted:#98A5B1;--dim:#64707B;--live:#5BE49B;--live-line:#25604A;
+  --paper:#0A0D11;--ink-2:#98A5B1;--sea-1:#3E474F;--sea-2:#333B43;--sea-3:#282F36;--sea-4:#20262C;--sea-5:#191E23;
+  --fish-1:#FFFFFF;--fish-2:#C6D2DC;--fish-3:#8B99A6;--fish-4:#57636E;--wake-1:#3A444D;--wake-2:#262E35;
+}
+:root[data-theme="blackblue"]{
+  color-scheme:dark;--page:#05070A;--fish-ink:#9CCBFF;
+  --water:#060A12;--chrome:#0A101B;--surface:#0C131F;--sel:#111C2E;--head:#0E1622;--rule:#18243A;--rule-2:#26364F;
+  --fg-strong:#E9F1FC;--fg:#CEDDF0;--muted:#8CA3C1;--dim:#586B88;--live:#4D9BFF;--live-line:#1F4A85;
+  --paper:#060A12;--ink-2:#8CA3C1;--sea-1:#35486A;--sea-2:#2C3C58;--sea-3:#243147;--sea-4:#1D2739;--sea-5:#171F2D;
+  --fish-1:#9CCBFF;--fish-2:#6FA9EE;--fish-3:#4B82C4;--fish-4:#33608F;--wake-1:#2A3A55;--wake-2:#1E2A3D;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{background:var(--page)}
+body{margin:0;background:transparent;color:var(--fg);
+  font:400 13px/1.5 var(--mono);-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit;background:none;border:0}
+
+/* --- the small shoals in the space the centred UI leaves ------------- */
+.drift{position:fixed;top:0;height:100vh;z-index:0;pointer-events:none;display:block;
+  width:calc(50vw - var(--half-core) - 16px)}
+.drift--left{left:0}
+.drift--right{right:0}
+@media(max-width:1060px){.drift{display:none}}
+
+/* --- the tank -------------------------------------------------------- */
+.tank{position:relative;z-index:1;width:var(--core);margin:var(--gap) auto;overflow:clip;
+  background:var(--water);border:1px solid var(--rule)}
+
+.tank__bar{position:sticky;top:0;z-index:3;display:flex;align-items:center;gap:10px;
+  height:30px;padding:0 10px;background:var(--chrome);border-bottom:1px solid var(--rule);
+  font-size:10px;color:var(--dim)}
+.tank__bar b{color:var(--fg);font-weight:500}
+.lamps{display:flex;gap:4px}
+.lamps i{width:6px;height:6px;border-radius:50%;background:var(--rule-2)}
+.lamps i:first-child{background:var(--live)}
+.tank__bar .sp{margin-left:auto}
+.tag{padding:2px 5px;border:1px solid var(--rule);color:var(--dim);font-size:9px;letter-spacing:.04em}
+.tag b{color:var(--fg)}
+.theme-select{height:20px;max-width:116px;padding:0 18px 0 5px;border:1px solid var(--rule-2);
+  background:var(--surface);color:var(--fg);font:500 9px/1 var(--mono);letter-spacing:.02em;cursor:pointer}
+.theme-select:focus-visible{outline:1px solid var(--live);outline-offset:2px}
+
+.tank__water{position:sticky;top:30px;z-index:0;height:calc(100vh - 30px);
+  margin-bottom:calc(30px - 100vh)}
+.tank__water canvas{display:block;width:100%;height:100%}
+
+.tank__body{position:relative;z-index:1;padding:22px 16px 14px}
+
+.tank__status{position:sticky;bottom:0;z-index:3;display:flex;align-items:center;gap:10px;
+  height:24px;padding:0 10px;background:var(--chrome);border-top:1px solid var(--rule);
+  font-size:9.5px;color:var(--dim);white-space:nowrap;overflow:hidden}
+.tank__status .seg{padding:0 6px;background:var(--live);color:var(--water);font-weight:600;letter-spacing:.12em}
+.tank__status .sp{margin-left:auto}
+.tank__status b{color:var(--fg);font-weight:500}
+
+/* --- banner: the only place the water shows behind type -------------- */
+.banner{max-width:60ch}
+.comment{margin:0;font-size:10px;color:var(--dim);letter-spacing:.04em}
+h1{margin:10px 0 8px;font-size:clamp(24px,3.3vw,34px);line-height:1.08;letter-spacing:-.02em;
+  font-weight:600;color:var(--fg-strong)}
+.lede{margin:0;font-size:11px;line-height:1.7;color:var(--muted)}
+.prompt{display:flex;align-items:center;gap:6px;margin-top:16px;padding:7px 9px;
+  border:1px solid var(--rule-2);background:var(--surface);font-size:11px;color:var(--muted)}
+.prompt b{color:var(--live);font-weight:500}
+.prompt .ps{color:var(--dim)}
+.caret{width:6px;height:13px;background:var(--fg);animation:blink 1.1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.counts{margin:10px 0 0;font-size:10px;color:var(--dim);letter-spacing:.02em}
+.counts b{color:var(--fg-strong);font-weight:600;margin-right:3px}
+.counts span{margin-right:14px}
+
+/* --- rows of framed functions ---------------------------------------- */
+.row{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;margin-top:26px;align-items:start}
+.row--3{grid-template-columns:150px minmax(0,1fr) 230px}
+.row--2{grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr)}
+
+.mod{position:relative;border:1px solid var(--rule);background:var(--surface);
+  padding:20px 0 0}
+.mod__name{position:absolute;top:-6px;left:10px;padding:0 6px;background:var(--surface);
+  margin:0;font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;color:var(--fg)}
+.mod__meta{position:absolute;top:-6px;right:10px;padding:0 6px;background:var(--surface);
+  font-size:9px;color:var(--dim);letter-spacing:.06em}
+.mod__pad{padding:2px 11px 12px}
+
+.rule{height:1px;background:var(--rule);margin:0}
+
+/* --- SELECT output ---------------------------------------------------- */
+.q{margin:0;padding:3px 11px 9px;font-size:9.5px;color:var(--dim);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.q b{color:var(--live);font-weight:500}
+.q i{font-style:normal;color:var(--muted)}
+
+.tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}
+.tbl th,.tbl td{padding:6px 9px;text-align:left;vertical-align:top;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl thead th{font-weight:500;font-size:9px;letter-spacing:.10em;color:var(--dim);
+  background:var(--head);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)}
+.tbl td{color:var(--muted);border-bottom:1px solid var(--rule)}
+.tbl th+th,.tbl td+td{border-left:1px solid var(--rule)}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tbody tr.on td{background:var(--sel)}
+.tbl .k{color:var(--fg-strong)}
+.tbl .n{text-align:right;color:var(--fg)}
+.tbl .d{color:var(--dim)}
+.tbl .g{color:var(--live)}
+.tbl .wrap{white-space:normal;line-height:1.6}
+.tbl .null{color:var(--rule-2)}
+
+.rows{margin:0;padding:7px 11px;font-size:9px;color:var(--dim);
+  border-top:1px solid var(--rule)}
+.rows b{color:var(--muted);font-weight:500}
+
+/* expanded single row, the way \gx prints it */
+.recmark{display:flex;align-items:center;gap:8px;padding:5px 11px 7px;
+  font-size:9px;letter-spacing:.06em;color:var(--dim)}
+.recmark::after{content:"";flex:1;border-top:1px dashed var(--rule-2)}
+.tbl--x{table-layout:fixed}
+.tbl--x th{width:74px;font-weight:400;font-size:9px;color:var(--dim);
+  border-bottom:1px solid var(--rule)}
+.tbl--x tbody tr:last-child th{border-bottom:0}
+
+/* --- \set: the runtime knobs, opt-in --------------------------------- */
+.conf{padding:9px 11px 13px;display:grid;gap:9px 16px;grid-template-columns:repeat(2,minmax(0,1fr))}
+.conf__head{grid-column:1/-1;padding-bottom:5px;border-bottom:1px solid var(--rule);
+  font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)}
+.cf{display:grid;grid-template-columns:58px minmax(0,1fr) 40px;align-items:center;gap:8px;
+  font-size:9px;color:var(--dim)}
+.cf b{color:var(--fg);font-weight:500;text-align:right;font-variant-numeric:tabular-nums}
+.cf input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:13px;
+  background:none;cursor:pointer}
+.cf input[type=range]::-webkit-slider-runnable-track{height:1px;background:var(--rule-2)}
+.cf input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:9px;height:9px;
+  margin-top:-4px;background:var(--live);border:0;border-radius:0}
+.cf input[type=range]::-moz-range-track{height:1px;background:var(--rule-2)}
+.cf input[type=range]::-moz-range-thumb{width:9px;height:9px;background:var(--live);
+  border:0;border-radius:0}
+.cf input[type=range]:focus-visible{outline:1px solid var(--live);outline-offset:3px}
+.conf__foot{grid-column:1/-1;display:flex;align-items:center;gap:10px;padding-top:2px}
+.btn{padding:3px 9px;border:1px solid var(--live-line);color:var(--live);
+  font:inherit;font-size:9px;letter-spacing:.06em;cursor:pointer}
+.btn:hover{background:var(--sel)}
+.conf__note{font-size:9px;color:var(--dim)}
+
+.state::before{content:"● ";font-size:7px;vertical-align:1px;color:var(--live)}
+.state.off::before{color:var(--rule-2)}
+.inline-action,.file-download{appearance:none;border:0;background:none;padding:0;color:var(--live);font:inherit;text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.inline-action:hover,.file-download:hover{color:var(--fg-strong)}
+.runtime-status{margin-left:10px;color:var(--dim)}
+.runtime-status--error{color:var(--live)}
+
+@media(max-width:860px){
+  :root{--core:calc(100vw - 20px)}
+  .row--2{grid-template-columns:minmax(0,1fr)}
+  .hide-m{display:none}
+}
+@media(max-width:560px){
+  .hide-s{display:none}
+  .tbl th,.tbl td{padding:6px 7px}
+  .tbl .wrap{white-space:normal}
+}
+@media(max-width:620px){
+  .tank__bar .tag{display:none}
+  .tank__status>span:last-child{display:none}
+}
+@media (prefers-reduced-motion: reduce){
+  .caret{animation:none}
+  .drift{opacity:.75}
+}
+</style></head>
+<body>
+<canvas class="drift drift--left" aria-hidden="true"></canvas>
+<canvas class="drift drift--right" aria-hidden="true"></canvas>
+
+<div class="tank">
+  <div class="tank__bar">
+    <span class="lamps" aria-hidden="true"><i></i><i></i><i></i></span>
+    <b>dialog-index</b>
+    <span>~/sea/tank</span>
+    <span class="sp"></span>
+    <span class="tag"><b>WebMCP</b> 11</span>
+    <span class="tag"><b>remote</b> /mcp</span>
+    <span class="tag"><b>D1</b> DB</span>
+    <span class="tag"><b>R2</b> FILES</span>
+    <select class="theme-select" id="themeSelect" aria-label="Color theme">
+      <option value="white">White</option>
+      <option value="whiteblue">White / Blue</option>
+      <option value="whiteorange">White / Orange</option>
+      <option value="black">Black</option>
+      <option value="blackblue">Black / Blue</option>
+    </select>
+  </div>
+
+  <div class="tank__water" aria-hidden="true"><canvas id="seaCanvas"></canvas></div>
+
+  <div class="tank__body">
+    <section class="banner">
+      <p class="comment"># stable records / searchable text / shared tool contract</p>
+      <h1>Keep the memory.<br>See the structure.</h1>
+      <p class="lede">Only concepts, structure and saved-data counts stay prominent. Secondary operations remain compact.</p>
+      <div class="prompt"><b>~/sea</b><span class="ps">$</span> search records, content, tags <i class="caret" aria-hidden="true"></i></div>
+      <p class="counts"><span><b>—</b>records</span><span><b>—</b>indexes</span><span><b>—</b>FILES</span></p>
+    </section>
+
+    <div class="row">
+      <section class="mod">
+        <h2 class="mod__name">records</h2><span class="mod__meta">loading</span>
+        <p class="q"><b>sea=#</b> <i>select</i> id, title, idx, tags, updated <i>from</i> records <i>order by</i> updated <i>desc limit</i> 3;</p>
+        <table class="tbl">
+          <thead><tr>
+            <th class="hide-s" style="width:15%">id</th><th>title</th><th style="width:16%">idx</th><th class="hide-m" style="width:19%">tags</th><th style="width:14%">updated</th>
+          </tr></thead>
+          <tbody>
+            <tr><td class="null wrap" colspan="5">loading records</td></tr>
+          </tbody>
+        </table>
+        <p class="rows">(<b>loading</b>)</p>
+      </section>
+    </div>
+
+    <div class="row row--2">
+      <section class="mod">
+        <h2 class="mod__name">indexes</h2><span class="mod__meta">loading</span>
+        <p class="q"><b>sea=#</b> <i>select</i> idx, n, updated <i>from</i> indexes <i>order by</i> n <i>desc</i>;</p>
+        <table class="tbl">
+          <thead><tr><th>idx</th><th class="n" style="width:22%">n</th><th style="width:30%">updated</th></tr></thead>
+          <tbody>
+            <tr><td class="null wrap" colspan="3">loading indexes</td></tr>
+          </tbody>
+        </table>
+        <p class="rows">(<b>loading</b>)</p>
+      </section>
+
+      <section class="mod">
+        <h2 class="mod__name">detail</h2><span class="mod__meta">0 rows</span>
+        <p class="q"><b>sea=#</b> <i>select</i> * <i>from</i> records <i>where</i> id = :selected \gx</p>
+        <div class="recmark">-[ RECORD 1 ]-</div>
+        <table class="tbl tbl--x">
+          <tbody>
+            <tr><th scope="row">status</th><td class="null">no record selected</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+    <div class="row row--2">
+      <section class="mod">
+        <h2 class="mod__name">ingest</h2><span class="mod__meta">R2 checking</span>
+        <p class="q"><b>sea=#</b> <i>select</i> kind, target, cap <i>from</i> ingest;</p>
+        <table class="tbl">
+          <thead><tr><th style="width:26%">kind</th><th>target</th><th class="n" style="width:26%">cap</th></tr></thead>
+          <tbody>
+            <tr><td class="k">file</td><td>R2 · FILES</td><td class="n">25 MiB</td></tr>
+            <tr><td class="k">record</td><td>D1 · DB</td><td class="null">NULL</td></tr>
+            <tr><td class="k">base64</td><td>R2 via WebMCP</td><td class="n">2 MiB</td></tr>
+          </tbody>
+        </table>
+        <p class="rows">(<b>3 rows</b> · drop file / select file)</p>
+      </section>
+
+      <section class="mod">
+        <h2 class="mod__name">access</h2><span class="mod__meta">checking</span>
+        <p class="q"><b>sea=#</b> <i>select</i> surface, endpoint, state <i>from</i> access;</p>
+        <table class="tbl">
+          <thead><tr><th style="width:30%">surface</th><th>endpoint</th><th style="width:34%">state</th></tr></thead>
+          <tbody>
+            <tr><td class="k">WebMCP</td><td class="d">document.modelContext</td><td class="null">checking</td></tr>
+            <tr><td class="k">Remote MCP</td><td class="d">/mcp</td><td class="null">checking</td></tr>
+            <tr><td class="k">D1</td><td class="d">DB</td><td class="null">checking</td></tr>
+            <tr><td class="k">R2</td><td class="d">FILES</td><td class="null">checking</td></tr>
+          </tbody>
+        </table>
+        <p class="rows">(<b>checking</b> · one service layer)</p>
+      </section>
+    </div>
+
+    <div class="row">
+      <section class="mod">
+        <h2 class="mod__name">activity</h2><span class="mod__meta">loading</span>
+        <p class="q"><b>sea=#</b> <i>select</i> at, actor, tool, result <i>from</i> activity <i>order by</i> at <i>desc limit</i> 3;</p>
+        <table class="tbl">
+          <thead><tr><th style="width:14%">at</th><th style="width:18%">actor</th><th>tool</th><th style="width:23%">result</th></tr></thead>
+          <tbody>
+            <tr><td class="null wrap" colspan="4">loading activity</td></tr>
+          </tbody>
+        </table>
+        <p class="rows">(<b>loading</b> · append-only)</p>
+      </section>
+    </div>
+    <div class="row">
+      <section class="mod">
+        <h2 class="mod__name">tune</h2><span class="mod__meta">runtime</span>
+        <p class="q"><b>sea=#</b> \set — the tank's own parameters; nothing here is stored</p>
+        <div class="conf">
+          <p class="conf__head">sea · the ASCII water inside the tank</p>
+          <label class="cf"><span>density</span><input type="range" id="cfDensity" min="0.06" max="1" step="0.02"><b>—</b></label>
+          <label class="cf"><span>cell</span><input type="range" id="cfCell" min="4" max="10" step="1"><b>—</b></label>
+          <label class="cf"><span>school</span><input type="range" id="cfFish" min="0" max="12" step="1"><b>—</b></label>
+          <label class="cf"><span>speed</span><input type="range" id="cfSpeed" min="0.2" max="2" step="0.05"><b>—</b></label>
+          <label class="cf"><span>wave</span><input type="range" id="cfWave" min="0" max="2" step="0.05"><b>—</b></label>
+          <label class="cf"><span>wake</span><input type="range" id="cfWake" min="0" max="1" step="0.05"><b>—</b></label>
+
+          <p class="conf__head">shoal · the dot fish beside the tank</p>
+          <label class="cf"><span>count</span><input type="range" id="cfCount" min="0" max="16" step="1"><b>—</b></label>
+          <label class="cf"><span>size</span><input type="range" id="cfSize" min="0.4" max="2.2" step="0.05"><b>—</b></label>
+          <label class="cf"><span>grain</span><input type="range" id="cfGrain" min="1" max="4" step="0.1"><b>—</b></label>
+          <label class="cf"><span>ink</span><input type="range" id="cfInk" min="0.05" max="0.7" step="0.01"><b>—</b></label>
+
+          <div class="conf__foot">
+            <button type="button" class="btn" id="cfReset">reset</button>
+            <span class="conf__note">every value also prints in the status line below</span>
+          </div>
+        </div>
+      </section>
+    </div>
+
+  </div>
+
+  <div class="tank__status">
+    <span class="seg">SHOAL</span>
+    <span><b>~/sea</b> $ <span id="shoalCmd" data-tpl="shoal --tank {w}x{h} --school {n} --cell {c} --ink ink">shoal --ink ink</span></span>
+    <span class="sp"></span>
+    <span id="themeStamp">dialog-index 0.5.4 · white</span>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const allowed = new Set(["white","whiteblue","whiteorange","black","blackblue"]);
+  const metaByTheme = {
+    white:{stamp:"white",ink:"ink"},
+    whiteblue:{stamp:"white · blue",ink:"cobalt"},
+    whiteorange:{stamp:"white · orange",ink:"orange"},
+    black:{stamp:"black",ink:"white"},
+    blackblue:{stamp:"black · blue",ink:"azure"}
+  };
+  const select = document.getElementById("themeSelect");
+  const cmd = document.getElementById("shoalCmd");
+  const stamp = document.getElementById("themeStamp");
+
+  function paintMeta(theme) {
+    const meta = metaByTheme[theme] || metaByTheme.white;
+    if (select) select.value = theme;
+    if (cmd) {
+      cmd.dataset.tpl = `shoal --tank {w}x{h} --school {n} --cell {c} --ink ${meta.ink}`;
+      cmd.textContent = `shoal --ink ${meta.ink}`;
+    }
+    if (stamp) stamp.textContent = `dialog-index 0.5.4 · ${meta.stamp}`;
+  }
+
+  function applyTheme(next) {
+    const theme = allowed.has(next) ? next : "white";
+    document.documentElement.dataset.theme = theme;
+    paintMeta(theme);
+    document.dispatchEvent(new CustomEvent("tank:theme", { detail: { theme } }));
+  }
+
+  const initial = allowed.has(document.documentElement.dataset.theme)
+    ? document.documentElement.dataset.theme
+    : "white";
+  paintMeta(initial);
+  if (select) select.addEventListener("change", () => applyTheme(select.value));
+  window.tankTheme = { apply: applyTheme, current: () => document.documentElement.dataset.theme };
+})();
+</script>
+
+<script>
+(() => {
+let REV = 0;
+  "use strict";
+
+  /* ---------------------------------------------------------
+     palette resolved once from the stylesheet
+     --------------------------------------------------------- */
+  const css = getComputedStyle(document.documentElement);
+  const C = (n) => css.getPropertyValue(n).trim();
+
+  let PAPER, SEA, FISH, WAKE, SPINEC, GRIDC2, TIERS;
+  function syncPalette() {
+    PAPER   = C("--paper");
+    SEA     = [C("--sea-1"), C("--sea-2"), C("--sea-3"), C("--sea-4"), C("--sea-5")];
+    FISH    = [C("--fish-1"), C("--fish-2"), C("--fish-3"), C("--fish-4")];
+    WAKE    = [C("--wake-1"), C("--wake-2")];
+    SPINEC  = C("--ink-2");
+    GRIDC2  = C("--rule-2");
+    TIERS   = [...SEA, ...FISH, ...WAKE, SPINEC];
+  }
+  syncPalette();
+  const T_SEA   = 0, T_FISH = 5, T_WAKE = 9, T_SPINE = 11;
+
+  /* ---------------------------------------------------------
+     glyph set — printable ASCII + middle dot
+     --------------------------------------------------------- */
+  const GLYPHS = [];
+  for (let c = 32; c <= 126; c++) GLYPHS.push(String.fromCharCode(c));
+  GLYPHS.push("·");                       // 95 : ·
+  const GI = new Map(GLYPHS.map((g, i) => [g, i]));
+  const gi = (ch) => { const i = GI.get(ch); return i === undefined ? 0 : i; };
+
+  const RAMP  = ["·", ":", "o", "O", "0", "@"].map(gi);
+  const BAYER = [0,8,2,10, 12,4,14,6, 3,11,1,9, 15,7,13,5].map(v => (v + 0.5) / 16);
+
+  /* ---------------------------------------------------------
+     the sea's vocabulary — generic shell / log noise
+     --------------------------------------------------------- */
+  const CORPUS = [
+    "$ shoal --school 6 --speed 0.85 --no-glow",
+    "» building glyph atlas ................ ok",
+    "[04:12:07] tide  drift -0.42   depth 38m",
+    "~/sea/current $ tail -f surface.log",
+    "0x7f3a  74 68 65 20 73 65 61 20 6f 66 20 64 6f 74 73",
+    "export SHOAL_CELL=9x18",
+    "cells 7480   dirty 1142   frame 2.9ms",
+    "resolve ./layers/{sea,spine,wake}.js",
+    "fish[3]  t=0.84  amp=0.31  phase=2.117",
+    "let wake = buf.map(v => v * 0.94)",
+    "warn: light is thinning below row 30",
+    "listening on :7391  —  press q to surface",
+    "SHOAL(1)                        SHOAL(1)",
+    "checksum 9f2c1ae  ok",
+    "..:::oOo:::..",
+    "· · · · · · · · · · · · · · ·",
+    "for (const f of school) f.swim(dt)",
+    "--- current shifts west, 0.3 kn ---",
+    "$ man shoal | col -b > shoal.txt",
+    "depth[42] = 0.0018   temp = 14.2C",
+    "ok  184 cells redrawn  0 dropped",
+    "\"school\": { \"n\": 6, \"wave\": 1.0 }",
+    "GET /current/12/8.txt 200 1.4kb",
+    "trace: spine -> profile -> dither",
+    "no blur. no glow. one ink.",
+    "$ echo $SEA | wc -c",
+    "0000  2e 2e 3a 3a 6f 4f 30 40",
+    "idle ...........................",
+  ];
+
+  /* ---------------------------------------------------------
+     shared config
+     --------------------------------------------------------- */
+  const DEFAULTS = { fish:6, speed:.85, wave:1, density:.5, cell:7, wake:.45, grid:false, paused:false };
+  const CFG = { ...DEFAULTS };
+  let THEME = document.documentElement.dataset.theme || "white";
+  let DARK_THEME = THEME === "black" || THEME === "blackblue";
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (REDUCED) CFG.paused = true;
+
+  /* ---------------------------------------------------------
+     glyph atlas — every glyph baked once per colour tier,
+     opaque on paper so one drawImage replaces a whole cell
+     --------------------------------------------------------- */
+  const atlasCache = new Map();
+
+  function atlasFor(cw, ch, dpr, showGrid) {
+    const key = `${cw}|${ch}|${dpr}|${showGrid ? 1 : 0}`;
+    const hit = atlasCache.get(key);
+    if (hit) return hit;
+
+    const w = Math.round(cw * dpr), h = Math.round(ch * dpr);
+    const cv = document.createElement("canvas");
+    cv.width = GLYPHS.length * w;
+    cv.height = TIERS.length * h;
+    const g2 = cv.getContext("2d", { alpha: false });
+
+    g2.fillStyle = PAPER;
+    g2.fillRect(0, 0, cv.width, cv.height);
+
+    if (showGrid) {
+      const d = Math.max(1, Math.round(dpr));
+      g2.fillStyle = GRIDC2;
+      for (let t = 0; t < TIERS.length; t++)
+        for (let g = 0; g < GLYPHS.length; g++)
+          g2.fillRect(g * w, t * h, d, d);
+    }
+
+    g2.font = `400 ${Math.round(ch * dpr * 0.74)}px "IBM Plex Mono", ui-monospace, monospace`;
+    g2.textAlign = "center";
+    g2.textBaseline = "middle";
+    for (let t = 0; t < TIERS.length; t++) {
+      g2.fillStyle = TIERS[t];
+      const cy = t * h + h / 2 + dpr * 0.5;
+      for (let gx = 0; gx < GLYPHS.length; gx++) {
+        if (GLYPHS[gx] === " ") continue;
+        g2.fillText(GLYPHS[gx], gx * w + w / 2, cy);
+      }
+    }
+
+    const entry = { cv, w, h, grid: showGrid };
+    if (atlasCache.size > 8) atlasCache.clear();
+    atlasCache.set(key, entry);
+    return entry;
+  }
+
+  /* ---------------------------------------------------------
+     fish — a chain of points plus a travelling tail wave
+     --------------------------------------------------------- */
+  const SEG = 18;                                   // spine points
+
+  function bodyProfile(t) {
+    if (t < 0.74) {                                 // nose · belly · peduncle
+      const u = t / 0.74;
+      return 0.11 + 0.89 * Math.pow(Math.sin(Math.pow(u, 0.60) * Math.PI), 0.80);
+    }
+    if (t < 0.82) return 0.11;                      // the waist that reads as a tail joint
+    const u = (t - 0.82) / 0.18;                    // caudal fan, taller than the body
+    return 0.11 + 1.45 * u * u;
+  }
+
+  function makeFish(W, H, rnd, i, n, band) {
+    const depth = n === 1 ? 0 : i / (n - 1);        // 0 = near, 1 = far
+    const near  = 1 - depth;
+    const base  = Math.max(W, H * 0.85);            // keeps fish readable on narrow screens
+    const len   = Math.min(base * (0.090 + 0.170 * near), H * 0.74);
+    const f = {
+      depth, len,
+      seg:  len / (SEG - 1),
+      half: len * (0.140 + 0.015 * near),
+      spd:  (22 + 42 * near) * (0.6 + 0.4 * rnd()),
+      dir:  rnd() < 0.5 ? -1 : 1,
+      ph:   rnd() * 100,
+      tt:   rnd() * 60,
+      tier: T_FISH + Math.min(3, Math.round(depth * 3.2)),
+      pts:  [],
+    };
+    f.hx = rnd() * W;
+    f.hy = H * (0.09 + 0.82 * ((band + rnd()) / n));  // one band each, so they don't clump
+    resetChain(f);
+    return f;
+  }
+
+  function resetChain(f) {
+    f.pts.length = 0;
+    for (let i = 0; i < SEG; i++) f.pts.push({ x: f.hx + f.dir * i * f.seg * -1, y: f.hy });
+  }
+
+  function stepFish(f, dt, W, H) {
+    f.tt += dt;
+    const vx = f.dir * f.spd;
+    let vy = Math.sin(f.tt * 0.37 + f.ph) * f.spd * 0.20
+           + Math.sin(f.tt * 0.13 + f.ph * 1.7) * f.spd * 0.11;
+    const m = f.len * 0.30 + 14;
+    if (f.hy < m)       vy += (m - f.hy) * 1.6;
+    if (f.hy > H - m)   vy -= (f.hy - (H - m)) * 1.6;
+
+    f.hx += vx * dt;
+    f.hy += vy * dt;
+
+    const out = f.len * 1.5;
+    if ((f.dir < 0 && f.hx < -out) || (f.dir > 0 && f.hx > W + out)) {
+      f.hx = f.dir < 0 ? W + out : -out;
+      f.hy = H * (0.12 + 0.76 * Math.random());
+      f.ph = Math.random() * 100;
+      resetChain(f);
+      return;
+    }
+
+    const p = f.pts;
+    p[0].x = f.hx; p[0].y = f.hy;
+    for (let i = 1; i < SEG; i++) {
+      const dx = p[i].x - p[i - 1].x, dy = p[i].y - p[i - 1].y;
+      const d = Math.hypot(dx, dy) || 1;
+      p[i].x = p[i - 1].x + (dx / d) * f.seg;
+      p[i].y = p[i - 1].y + (dy / d) * f.seg;
+    }
+  }
+
+  // render spine = chain + travelling wave (recomputed each frame)
+  function waveSpine(f, time, out) {
+    const p = f.pts;
+    const amp = f.len * 0.075 * CFG.wave;
+    const w = 2.0 * CFG.speed + 0.85;
+    for (let i = 0; i < SEG; i++) {
+      const a = p[Math.max(0, i - 1)], b = p[Math.min(SEG - 1, i + 1)];
+      let tx = b.x - a.x, ty = b.y - a.y;
+      const tl = Math.hypot(tx, ty) || 1;
+      tx /= tl; ty /= tl;
+      const u = i / (SEG - 1);
+      const k = amp * Math.pow(u, 1.75) * Math.sin(u * 6.0 - time * w + f.ph);
+      out[i].x = p[i].x + (-ty) * k;
+      out[i].y = p[i].y + ( tx) * k;
+      out[i].t = u;
+    }
+  }
+
+  /* ---------------------------------------------------------
+     one animated surface
+     --------------------------------------------------------- */
+  class Shoal {
+    constructor(canvas, mode) {
+      this.cv = canvas;
+      this.ctx = canvas.getContext("2d", { alpha: false });
+      this.mode = mode;                             // full | sea | spine | wake
+      this.visible = false;
+      this.time = 0;
+      this.dirty = 0;
+      this.quiet = [];                              // rects kept clear for copy
+      this.scratch = Array.from({ length: SEG }, () => ({ x: 0, y: 0, t: 0 }));
+      this.segA = new Float64Array((SEG - 1) * 5);
+      this.layout();
+    }
+
+    setQuiet(rects) { this.quiet = rects; this.layout(); }
+
+    requiet(rects) {
+      this.quiet = rects;
+      if (!this.quietF) return;
+      this.quietF.fill(0);
+      const { cw, ch, cols, rows } = this;
+      const cr = this.cv.getBoundingClientRect();
+      const fx = 66, fy = 44;
+      for (const q of this.quiet) {
+        const x0 = q.left - cr.left, y0 = q.top - cr.top;
+        const x1 = x0 + q.width, y1 = y0 + q.height;
+        const c0 = Math.max(0, Math.floor((x0 - fx) / cw));
+        const c1 = Math.min(cols - 1, Math.ceil((x1 + fx) / cw));
+        const r0 = Math.max(0, Math.floor((y0 - fy) / ch));
+        const r1 = Math.min(rows - 1, Math.ceil((y1 + fy) / ch));
+        for (let ry = r0; ry <= r1; ry++) {
+          const py = ry * ch + ch / 2;
+          for (let rx = c0; rx <= c1; rx++) {
+            const px = rx * cw + cw / 2;
+            const dx = Math.max(x0 - px, 0, px - x1);
+            const dy = Math.max(y0 - py, 0, py - y1);
+            const v = Math.max(0, 1 - Math.hypot(dx / fx, dy / fy));
+            const i = ry * cols + rx;
+            if (v > this.quietF[i]) this.quietF[i] = v;
+          }
+        }
+      }
+      this.needsFull = true;
+    }
+
+    layout() {
+      const r = this.cv.getBoundingClientRect();
+      const W = Math.max(80, Math.round(r.width));
+      const H = Math.max(60, Math.round(r.height));
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+
+      let cw = CFG.cell;
+      if (this.mode !== "full") cw = Math.max(4, Math.round(cw * 0.66));
+      let ch = cw * 2;
+      while ((W / cw) * (H / ch) > 30000) { cw += 1; ch = cw * 2; }
+
+      this.W = W; this.H = H; this.dpr = dpr; this.cw = cw; this.ch = ch;
+      this.cols = Math.ceil(W / cw);
+      this.rows = Math.ceil(H / ch);
+      const n = this.cols * this.rows;
+
+      this.cv.width  = Math.round(W * dpr);
+      this.cv.height = Math.round(H * dpr);
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      this.ctx.imageSmoothingEnabled = false;
+
+      this.prev = new Int32Array(n).fill(-1);
+      this.fint = new Float32Array(n);
+      this.ftier = new Uint8Array(n);
+      this.wake = new Float32Array(n);
+      this.hole = new Float32Array(n);      // water the fish has pushed the text out of
+      this.clr  = new Float32Array(n);
+      this.quietF = new Float32Array(n);
+      this.spineMark = new Uint8Array(n);
+
+      // quiet-zone falloff (keeps the sea out of the headline)
+      const cr = this.cv.getBoundingClientRect();
+      for (const q of this.quiet) {
+        const x0 = q.left - cr.left, y0 = q.top - cr.top;
+        const x1 = x0 + q.width, y1 = y0 + q.height;
+        const fx = 66, fy = 44;
+        for (let ry = 0; ry < this.rows; ry++) {
+          const py = ry * ch + ch / 2;
+          for (let rx = 0; rx < this.cols; rx++) {
+            const px = rx * cw + cw / 2;
+            const dx = Math.max(x0 - px, 0, px - x1);
+            const dy = Math.max(y0 - py, 0, py - y1);
+            const v = Math.max(0, 1 - Math.hypot(dx / fx, dy / fy));
+            const i = ry * this.cols + rx;
+            if (v > this.quietF[i]) this.quietF[i] = v;
+          }
+        }
+      }
+
+      this.buildSea();
+      this.school();
+      this.needsFull = true;
+    }
+
+    buildSea() {
+      const pad = 260;
+      const width = this.cols + pad;
+      this.rowText = [];
+      this.rowOff = new Float32Array(this.rows);
+      this.rowSpd = new Float32Array(this.rows);
+      this.rowTier = new Uint8Array(this.rows);
+
+      for (let r = 0; r < this.rows; r++) {
+        let s = "";
+        while (s.length < width) {
+          if (Math.random() < 0.72 * CFG.density) {
+            s += CORPUS[(Math.random() * CORPUS.length) | 0] + "     ";
+          } else {
+            const n = 9 + ((Math.random() * 30) | 0);        // open water
+            let g = "";
+            for (let i = 0; i < n; i++) g += Math.random() < 0.055 * CFG.density ? "·" : " ";
+            s += g;
+          }
+        }
+        this.rowText.push(s.slice(0, width));
+        this.rowOff[r] = Math.random() * pad;
+        this.rowSpd[r] = 0.11 + Math.random() * 0.52;
+        const depth = this.rows < 2 ? 0 : r / (this.rows - 1);
+        const fall = this.mode === "full" ? 2.9 : 1.3;     // gentler fade on the small views
+        this.rowTier[r] = Math.max(0, Math.min(4, Math.round(1.15 + depth * fall + (Math.random() - 0.5) * 0.7)));
+      }
+      this.seaPad = pad;
+    }
+
+    school() {
+      const rnd = Math.random;
+      const room = Math.max(2, Math.round((this.W * this.H) / 41000));
+      const n = this.mode === "full" ? Math.min(CFG.fish, room) : (this.mode === "sea" ? 0 : 1);
+      const bands = [...Array(n).keys()];
+      for (let i = n - 1; i > 0; i--) {
+        const j = (rnd() * (i + 1)) | 0;
+        [bands[i], bands[j]] = [bands[j], bands[i]];
+      }
+      this.fish = [];
+      for (let i = 0; i < n; i++) this.fish.push(makeFish(this.W, this.H, rnd, i, n, bands[i]));
+      if (this.mode !== "full" && this.fish.length) {
+        const f = this.fish[0];
+        f.depth = 0; f.tier = T_FISH;
+        f.len = Math.min(this.W * 0.62, this.H * 1.40);
+        f.seg = f.len / (SEG - 1);
+        f.half = f.len * 0.150;
+        f.spd = this.W * 0.10;
+        f.dir = 1;
+        f.hx = this.W * 0.25; f.hy = this.H * 0.5;
+        resetChain(f);
+      }
+    }
+
+    step(dt) {
+      if (CFG.paused) {
+        if (this.painted && this.rev === REV) return;
+        this.rev = REV;
+      } else {
+        this.rev = REV;
+        this.time += dt;
+        for (let r = 0; r < this.rows; r++) {
+          this.rowOff[r] += this.rowSpd[r] * dt * (0.35 + 0.65 * CFG.speed);
+          if (this.rowOff[r] >= this.seaPad) this.rowOff[r] -= this.seaPad;
+        }
+        for (const f of this.fish) stepFish(f, dt * CFG.speed, this.W, this.H);
+      }
+      this.paint(dt);
+      this.painted = true;
+    }
+
+    paint(dt) {
+      const { cols, rows, cw, ch, fint, ftier, wake, hole, clr, prev, spineMark } = this;
+      const n = cols * rows;
+      const seaOn = this.mode !== "spine";
+      const wakeOn = this.mode !== "spine" && CFG.wake > 0.02;
+      const showSpine = this.mode === "spine";
+
+      fint.fill(0);
+      clr.fill(0);
+      if (showSpine) spineMark.fill(0);
+
+      for (let fi = this.fish.length - 1; fi >= 0; fi--) {
+        const f = this.fish[fi];
+        const sp = this.scratch;
+        waveSpine(f, this.time, sp);
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        for (let i = 0; i < SEG; i++) {
+          if (sp[i].x < minX) minX = sp[i].x;
+          if (sp[i].x > maxX) maxX = sp[i].x;
+          if (sp[i].y < minY) minY = sp[i].y;
+          if (sp[i].y > maxY) maxY = sp[i].y;
+        }
+        const pad = f.half * 2.2 + cw * 2;
+        const c0 = Math.max(0, Math.floor((minX - pad) / cw));
+        const c1 = Math.min(cols - 1, Math.ceil((maxX + pad) / cw));
+        const r0 = Math.max(0, Math.floor((minY - pad) / ch));
+        const r1 = Math.min(rows - 1, Math.ceil((maxY + pad) / ch));
+        if (c1 < c0 || r1 < r0) continue;
+
+        let eyeX = 0, eyeY = 0, eyeOn = f.len > 190;
+        if (eyeOn) {
+          const a = sp[0], b = sp[1];
+          let tx = b.x - a.x, ty = b.y - a.y;
+          const tl = Math.hypot(tx, ty) || 1; tx /= tl; ty /= tl;
+          const th = bodyProfile(0.10) * f.half;
+          eyeX = a.x - tx * f.len * 0.055 + (-ty) * th * 0.42;
+          eyeY = a.y - ty * f.len * 0.055 + ( tx) * th * 0.42;
+        }
+
+        const SA = this.segA;
+        for (let i = 0; i < SEG - 1; i++) {
+          const ax = sp[i].x, ay = sp[i].y;
+          const ux = sp[i + 1].x - ax, uy = sp[i + 1].y - ay;
+          const k = i * 5;
+          SA[k] = ax; SA[k + 1] = ay; SA[k + 2] = ux; SA[k + 3] = uy;
+          SA[k + 4] = 1 / (ux * ux + uy * uy || 1);
+        }
+        const invSeg = 1 / (SEG - 1);
+
+        for (let ry = r0; ry <= r1; ry++) {
+          const py = ry * ch + ch * 0.5;
+          for (let rx = c0; rx <= c1; rx++) {
+            const px = rx * cw + cw * 0.5;
+            let best = Infinity, bt = 0, bpy = 0;
+            for (let i = 0, k = 0; i < SEG - 1; i++, k += 5) {
+              const ax = SA[k], ay = SA[k + 1], ux = SA[k + 2], uy = SA[k + 3];
+              let s = ((px - ax) * ux + (py - ay) * uy) * SA[k + 4];
+              s = s < 0 ? 0 : s > 1 ? 1 : s;
+              const dx = px - (ax + ux * s), dy = py - (ay + uy * s);
+              const dd = dx * dx + dy * dy;
+              if (dd < best) { best = dd; bt = (i + s) * invSeg; bpy = ay + uy * s; }
+            }
+            const d = Math.sqrt(best);
+
+            let th = bodyProfile(bt) * f.half;
+            const above = py < bpy;
+            if (above && bt > 0.26 && bt < 0.60) th *= 1 + 0.52 * Math.pow(Math.sin((bt - 0.26) / 0.34 * Math.PI), 0.7);
+            if (!above && bt > 0.20 && bt < 0.36) th *= 1 + 0.30 * Math.sin((bt - 0.20) / 0.16 * Math.PI);
+            if (!above && bt > 0.52 && bt < 0.70) th *= 1 + 0.26 * Math.sin((bt - 0.52) / 0.18 * Math.PI);
+            if (th <= 0.001) continue;
+
+            const i0 = ry * cols + rx;
+            if (d < th * 1.45) {
+              const c = (th * 1.45 - d) / (th * 0.22);
+              const cc = c > 1 ? 1 : c;
+              if (cc > clr[i0]) clr[i0] = cc;
+            }
+            if (d > th) continue;
+
+            const r = d / th;
+            let v = 1.35 * (1 - r);
+            if (v > 1) v = 1;
+            v *= 0.72 + 0.28 * (1 - bt * 0.85);
+            if (bt > 0.855) {
+              const k = r / 0.46;
+              if (k < 1) v *= Math.pow(k, 1.7);
+            }
+            if (eyeOn) {
+              const ex = px - eyeX, ey = py - eyeY;
+              if (ex * ex + ey * ey < (ch * 0.62) * (ch * 0.62)) v = 0;
+            }
+            if (this.quietF[i0] > 0) v *= 1 - 0.72 * this.quietF[i0];
+            if (v <= 0.02) continue;
+
+            fint[i0] = v;
+            ftier[i0] = f.tier;
+          }
+        }
+
+        if (showSpine) {
+          for (let i = 0; i < SEG; i++) {
+            const rx = Math.floor(sp[i].x / cw), ry = Math.floor(sp[i].y / ch);
+            if (rx >= 0 && rx < cols && ry >= 0 && ry < rows) spineMark[ry * cols + rx] = 1;
+          }
+        }
+      }
+
+      if (wakeOn) {
+        const decay = Math.pow(this.mode === "wake" ? 0.988 : (0.900 + 0.099 * CFG.wake), dt * 60);
+        const hdec  = Math.pow(this.mode === "wake" ? 0.990 : (0.955 + 0.043 * CFG.wake), dt * 60);
+        for (let i = 0; i < n; i++) {
+          let w = wake[i] * decay;
+          const v = fint[i];
+          if (v > w) w = v;
+          wake[i] = w < 0.004 ? 0 : w;
+
+          let hv = hole[i] * hdec;
+          if (clr[i] > hv) hv = clr[i];
+          hole[i] = hv < 0.01 ? 0 : hv;
+        }
+      } else if (this.mode !== "spine") {
+        wake.fill(0);
+        for (let i = 0; i < n; i++) hole[i] = clr[i];
+      }
+
+      const ctx = this.ctx;
+      const at = atlasFor(cw, ch, this.dpr, CFG.grid);
+      if (this.needsFull || this.atlasKey !== at) {
+        ctx.fillStyle = PAPER;
+        ctx.fillRect(0, 0, this.W, this.H);
+        prev.fill(-1);
+        this.needsFull = false;
+        this.atlasKey = at;
+      }
+
+      const sheet = at.cv, aw = at.w, ah = at.h;
+      let drawn = 0;
+
+      for (let ry = 0; ry < rows; ry++) {
+        const rowBase = ry * cols;
+        const text = seaOn ? this.rowText[ry] : null;
+        const off = seaOn ? (this.rowOff[ry] | 0) : 0;
+        const baseTier = seaOn ? this.rowTier[ry] : 0;
+        const by = (ry & 3) * 4;
+
+        for (let rx = 0; rx < cols; rx++) {
+          const i = rowBase + rx;
+          let g = 0, t = 0;
+
+          if (showSpine && spineMark[i]) { g = gi("+"); t = T_SPINE; }
+
+          const v = g === 0 ? fint[i] : 0;
+          if (v > 0) {
+            const q = v * RAMP.length + (BAYER[by + (rx & 3)] - 0.5);
+            let li = Math.floor(q);
+            if (li >= 0) {
+              if (li >= RAMP.length) li = RAMP.length - 1;
+              g = RAMP[li];
+              t = ftier[i];
+            }
+          }
+
+          if (g === 0) {
+            const w = wake[i];
+            if (w > 0.06) {
+              const q = w * 2.2 + (BAYER[by + (rx & 3)] - 0.5);
+              let li = Math.floor(q);
+              if (li >= 0) {
+                if (li > 1) li = 1;
+                g = RAMP[li];
+                t = T_WAKE + (li >= 1 ? 0 : 1);
+              }
+            }
+          }
+
+          if (g === 0 && seaOn && hole[i] < 0.30) {
+            const ch0 = text.charCodeAt(off + rx);
+            if (ch0 !== 32 && !Number.isNaN(ch0)) {
+              g = ch0 === 0xB7 ? 95 : (ch0 >= 32 && ch0 <= 126 ? ch0 - 32 : 0);
+              const qf = this.quietF[i];
+              t = Math.min(4, baseTier + Math.round(qf * 3.6));
+              if (qf > 0.86) g = 0;
+            }
+          }
+
+          const key = g === 0 ? -2 : g * 32 + t;
+          if (key === prev[i]) continue;
+          prev[i] = key;
+          drawn++;
+
+          const dx = rx * cw, dy = ry * ch;
+          if (key === -2) {
+            ctx.drawImage(sheet, 0, 0, aw, ah, dx, dy, cw, ch);
+          } else {
+            ctx.drawImage(sheet, g * aw, t * ah, aw, ah, dx, dy, cw, ch);
+          }
+        }
+      }
+      this.dirty = drawn;
+    }
+  }
+
+  CFG.fish = 6; CFG.speed = 0.75; CFG.wave = 1; CFG.wake = 0.45; CFG.cell = 5;
+
+  let sea = null, timer = 0, manual = false;
+
+  function tune() {
+    if (manual) return;
+    const w = innerWidth;
+    CFG.density = DARK_THEME ? (w < 620 ? 0.78 : w < 900 ? 0.70 : 0.64) : (w < 620 ? 0.72 : w < 900 ? 0.64 : 0.58);
+    CFG.cell = w < 620 ? 4 : 5;
+  }
+
+  function quietRects() {
+    return [...document.querySelectorAll(".banner h1, .banner .lede, .banner .prompt, .banner .comment, .banner .counts")]
+      .map((n) => n.getBoundingClientRect())
+      .filter((r) => r.width > 0 && r.bottom > 0 && r.top < innerHeight);
+  }
+
+  function label() {
+    const el = document.getElementById("shoalCmd");
+    if (!el || !sea) return;
+    const tpl = el.dataset.tpl || "shoal --school {n}";
+    const next = tpl.replace("{w}", sea.cols).replace("{h}", sea.rows)
+                    .replace("{n}", sea.fish.length).replace("{c}", sea.cw + "x" + sea.ch);
+    if (el.textContent !== next) el.textContent = next;
+  }
+
+  function relayout() {
+    if (!sea) return;
+    tune();
+    sea.setQuiet(quietRects());
+    REV++;
+    label();
+  }
+
+  function boot() {
+    const cv = document.getElementById("seaCanvas");
+    if (!cv) return;
+    tune();
+    sea = new Shoal(cv, "full");
+    sea.visible = true;
+
+    let lastW = 0, lastH = 0;
+    new ResizeObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        const r = cv.getBoundingClientRect();
+        const w = Math.round(r.width), h = Math.round(r.height);
+        if (w === lastW && Math.abs(h - lastH) < 180) { sea.requiet(quietRects()); REV++; return; }
+        lastW = w; lastH = h;
+        relayout();
+      }, 90);
+    }).observe(cv);
+
+    let queued = false, lastCut = 0, tail = 0;
+    const recut = () => { if (sea) { sea.requiet(quietRects()); REV++; lastCut = performance.now(); } };
+    addEventListener("scroll", () => {
+      clearTimeout(tail);
+      tail = setTimeout(recut, 130);
+      if (queued || performance.now() - lastCut < 50) return;
+      queued = true;
+      requestAnimationFrame(() => { queued = false; recut(); });
+    }, { passive: true });
+
+    relayout();
+    requestAnimationFrame(loop);
+
+    window.tank = window.tank || {};
+    window.tank.sea = {
+      cfg: CFG,
+      apply(patch) {
+        manual = true;
+        Object.assign(CFG, patch);
+        if ("cell" in patch || "density" in patch || "fish" in patch) {
+          sea.layout();
+          sea.setQuiet(quietRects());
+        }
+        REV++;
+        label();
+      },
+      retheme(theme) {
+        THEME = theme || document.documentElement.dataset.theme || "white";
+        DARK_THEME = THEME === "black" || THEME === "blackblue";
+        syncPalette();
+        atlasCache.clear();
+        if (!manual) tune();
+        if (sea) {
+          sea.needsFull = true;
+          sea.atlasKey = null;
+          sea.prev.fill(-1);
+          sea.requiet(quietRects());
+        }
+        REV++;
+        label();
+      },
+    };
+    document.dispatchEvent(new CustomEvent("tank:sea-ready"));
+  }
+
+  document.addEventListener("tank:theme", (event) => {
+    if (window.tank && window.tank.sea) window.tank.sea.retheme(event.detail && event.detail.theme);
+  });
+
+  let last = performance.now();
+  function loop(now) {
+    requestAnimationFrame(loop);
+    let dt = (now - last) / 1000;
+    last = now;
+    if (dt > 0.1) dt = 0.1;
+    if (!sea || document.hidden) return;
+    sea.step(dt);
+  }
+
+  const start = () => {
+    boot();
+    let vw = innerWidth;
+    addEventListener("resize", () => {
+      if (innerWidth === vw) return;
+      vw = innerWidth;
+      clearTimeout(timer);
+      timer = setTimeout(relayout, 140);
+    });
+  };
+
+  if (document.fonts && document.fonts.load) {
+    Promise.race([
+      document.fonts.load('400 16px "IBM Plex Mono"', "·:oO0@$~[]").then(() => document.fonts.ready),
+      new Promise((r) => setTimeout(r, 1200)),
+    ]).then(start, start);
+  } else {
+    start();
+  }
+})();
+</script>
+
+<script>
+/* ============================================================
+   the small shoals outside the tank — vertical, fine-grained
+   ============================================================ */
+(() => {
+  "use strict";
+  const RM = matchMedia("(prefers-reduced-motion: reduce)");
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const themeAlpha = (theme) => ({
+    white:[0.160,0.340], whiteblue:[0.200,0.420], whiteorange:[0.220,0.460],
+    black:[0.160,0.360], blackblue:[0.170,0.380]
+  })[theme] || [0.160,0.340];
+  const themeInk = () => getComputedStyle(document.documentElement).getPropertyValue("--fish-ink").trim() || "#888";
+
+  function half(u) {
+    if (u < 0.28) return 0.58 * Math.pow(u / 0.28, 0.45);
+    if (u < 0.72) { const t = (u - 0.28) / 0.44; return 0.58 * (1 - 0.74 * Math.pow(t, 1.7)); }
+    const t = (u - 0.72) / 0.28; return 0.151 + 0.72 * Math.pow(t, 1.6);
+  }
+  function halfTop(u) {
+    const fin = (u > 0.30 && u < 0.60) ? 0.22 * Math.sin(Math.PI * (u - 0.30) / 0.30) : 0;
+    return half(u) + fin;
+  }
+
+  const LEVELS = [0.38, 0.68, 1.0];
+
+  const stamps = new Map();
+  function stampFor(cols, rows) {
+    const key = cols + "x" + rows;
+    const hit = stamps.get(key);
+    if (hit) return hit;
+
+    const buckets = [[], [], []];
+    const eyeC = Math.round(0.155 * (cols - 1));
+    const eyeR = Math.round(0.34 * (rows - 1));
+    const eyeSpan = cols > 20 ? 1 : 0;
+
+    for (let c = 0; c < cols; c++) {
+      const u = c / (cols - 1);
+      const lo = half(u), hi = halfTop(u);
+      for (let r = 0; r < rows; r++) {
+        const v = (r / (rows - 1)) * 2 - 1;
+        const lim = v < 0 ? hi : lo;
+        if (Math.abs(v) > lim + 1e-6) continue;
+        if (u > 0.80 && Math.abs(v) < 0.45 * ((u - 0.80) / 0.20) * lo) continue;
+        if (Math.abs(c - eyeC) <= eyeSpan && Math.abs(r - eyeR) <= eyeSpan) continue;
+
+        const rel = Math.abs(v) / Math.max(1e-3, lim);
+        let s = 1 - 0.40 * Math.pow(rel, 1.5);
+        s *= 0.80 + 0.20 * (1 - (v + 1) / 2);
+        if (u > 0.72) s *= 1 - 0.42 * ((u - 0.72) / 0.28);
+        if (u < 0.10) s *= 0.78;
+        buckets[s < 0.58 ? 0 : s < 0.80 ? 1 : 2].push(u, v);
+      }
+    }
+    const arr = buckets.map((b) => new Float32Array(b));
+    stamps.set(key, arr);
+    return arr;
+  }
+
+  function lattice(len, pitch) {
+    const cols = Math.max(13, Math.min(40, Math.round(len / pitch) + 1));
+    const rows = Math.max(9, Math.min(25, Math.round((2 * len * 0.21) / pitch) + 1)) | 1;
+    return stampFor(cols, rows);
+  }
+
+  class Drift {
+    constructor(cv, cfg) {
+      this.cv = cv; this.cfg = cfg;
+      this.ctx = cv.getContext("2d");
+      this.t = 0;
+      this.resize();
+    }
+    resize(keep) {
+      const r = this.cv.getBoundingClientRect();
+      this.W = Math.max(1, Math.round(r.width));
+      this.H = Math.max(1, Math.round(r.height));
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      this.cv.width = Math.round(this.W * dpr);
+      this.cv.height = Math.round(this.H * dpr);
+      this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      if (!keep || !this.fish || !this.fish.length) this.school();
+    }
+    school() {
+      const c = this.cfg;
+      const auto = Math.max(c.min, Math.min(c.max, Math.round((this.W * this.H) / c.per)));
+      const n = c.n == null ? auto : c.n;
+      this.fish = [];
+      for (let i = 0; i < n; i++) this.fish.push(this.make());
+    }
+    make() {
+      const c = this.cfg;
+      const lo = c.len[0] * c.scale, hi = c.len[1] * c.scale;
+      const len = rnd(lo, hi);
+      const near = (len - lo) / Math.max(1e-3, hi - lo);
+      const beam = len * 0.21 + 6;
+      return {
+        len, beam,
+        dots: lattice(len, c.pitch),
+        dir: Math.random() < 0.5 ? -1 : 1,
+        x: rnd(beam, Math.max(beam + 1, this.W - beam)),
+        y: rnd(-len, this.H + len),
+        speed: rnd(c.speed[0], c.speed[1]) * (0.75 + near * 0.5),
+        alpha: c.alpha[0] + (c.alpha[1] - c.alpha[0]) * near,
+        r: c.dot,
+        phase: rnd(0, Math.PI * 2),
+        bob: rnd(0.07, 0.17),
+        wob: rnd(0.12, 0.40),
+        freq: rnd(1.0, 1.7),
+      };
+    }
+    step(dt) {
+      this.t += dt;
+      const ctx = this.ctx;
+      ctx.clearRect(0, 0, this.W, this.H);
+      ctx.fillStyle = this.cfg.ink;
+
+      for (const f of this.fish) {
+        const vy = f.dir * f.speed;
+        const vx = Math.sin(this.t * f.bob + f.phase) * f.speed * f.wob;
+        f.x += vx * dt;
+        f.y += vy * dt;
+
+        const k = Math.min(1, 2.4 * dt);
+        if (f.x < f.beam) f.x += (f.beam - f.x) * k;
+        if (f.x > this.W - f.beam) f.x -= (f.x - (this.W - f.beam)) * k;
+
+        const pad = f.len;
+        const rex = () => rnd(f.beam, Math.max(f.beam + 1, this.W - f.beam));
+        if (f.y > this.H + pad) { f.y = -pad; f.x = rex(); }
+        if (f.y < -pad) { f.y = this.H + pad; f.x = rex(); }
+
+        const th = Math.atan2(vy, vx);
+        const cs = Math.cos(th), sn = Math.sin(th);
+        const hh = f.len * 0.21;
+        const amp = f.len * 0.05;
+        const w = 2 * Math.PI * f.freq;
+
+        for (let L = 0; L < 3; L++) {
+          const set = f.dots[L];
+          if (!set.length) continue;
+          const path = new Path2D();
+          for (let i = 0; i < set.length; i += 2) {
+            const u = set[i], v = set[i + 1];
+            const bend = amp * Math.pow(u, 1.55) * Math.sin(5 * u - w * this.t + f.phase);
+            const lx = (0.5 - u) * f.len;
+            const ly = bend + v * hh;
+            const px = f.x + lx * cs - ly * sn;
+            const py = f.y + lx * sn + ly * cs;
+            path.moveTo(px + f.r, py);
+            path.arc(px, py, f.r, 0, 6.2832);
+          }
+          ctx.globalAlpha = f.alpha * LEVELS[L];
+          ctx.fill(path);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  const MARGIN = { ink: themeInk(), per: 26000, min: 3, max: 11, pitch: 1.55, dot: 0.62,
+                   len: [16, 42], speed: [9, 24],
+                   alpha: themeAlpha(document.documentElement.dataset.theme || "white"),
+                   scale: 1, n: null };
+
+  const layers = [];
+  function build() {
+    layers.length = 0;
+    document.querySelectorAll(".drift").forEach((cv) => {
+      if (cv.getBoundingClientRect().width > 44) layers.push(new Drift(cv, MARGIN));
+    });
+    for (const L of layers) L.step(0);
+  }
+
+  let timer = 0, lastW = innerWidth;
+  addEventListener("resize", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      if (innerWidth === lastW) { for (const L of layers) L.resize(true); return; }
+      lastW = innerWidth;
+      build();
+    }, 140);
+  });
+
+  let last = performance.now(), acc = 0;
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = Math.min(0.06, (now - last) / 1000);
+    last = now;
+    if (RM.matches || document.hidden) return;
+    acc += dt;
+    if (acc < 1 / 32) return;
+    for (const L of layers) L.step(acc);
+    acc = 0;
+  }
+
+  build();
+  requestAnimationFrame(frame);
+
+  window.tank = window.tank || {};
+  window.tank.shoal = {
+    cfg: MARGIN,
+    apply(patch) { Object.assign(MARGIN, patch); build(); },
+    retheme(theme) {
+      MARGIN.ink = themeInk();
+      MARGIN.alpha = themeAlpha(theme || document.documentElement.dataset.theme || "white");
+      build();
+    },
+  };
+  document.addEventListener("tank:theme", (event) => {
+    if (window.tank && window.tank.shoal) window.tank.shoal.retheme(event.detail && event.detail.theme);
+  });
+  document.dispatchEvent(new CustomEvent("tank:shoal-ready"));
+})();
+</script>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const fmt = (v, step) => (step >= 1 ? String(Math.round(v)) : v.toFixed(2));
+
+  function bind(id, read, set, step) {
+    const el = $(id);
+    if (!el) return null;
+    const out = el.parentElement.querySelector("b");
+    const paint = () => { el.value = read(); out.textContent = fmt(Number(el.value), step); };
+    el.addEventListener("input", () => {
+      out.textContent = fmt(Number(el.value), step);
+      set(Number(el.value));
+    });
+    paint();
+    return paint;
+  }
+
+  const painters = [];
+  let seaDefaults = null, shoalDefaults = null;
+
+  function onReady(name, fn) {
+    if (window.tank && window.tank[name]) { fn(); return; }
+    document.addEventListener("tank:" + name + "-ready", fn, { once: true });
+  }
+
+  onReady("sea", () => {
+    const sea = window.tank.sea;
+    seaDefaults = { ...sea.cfg };
+    painters.push(
+      bind("cfDensity", () => sea.cfg.density, (v) => sea.apply({ density: v }), 0.02),
+      bind("cfCell",    () => sea.cfg.cell,    (v) => sea.apply({ cell: v }),    1),
+      bind("cfFish",    () => sea.cfg.fish,    (v) => sea.apply({ fish: v }),    1),
+      bind("cfSpeed",   () => sea.cfg.speed,   (v) => sea.apply({ speed: v }),   0.05),
+      bind("cfWave",    () => sea.cfg.wave,    (v) => sea.apply({ wave: v }),    0.05),
+      bind("cfWake",    () => sea.cfg.wake,    (v) => sea.apply({ wake: v }),    0.05),
+    );
+  });
+
+  onReady("shoal", () => {
+    const sh = window.tank.shoal;
+    shoalDefaults = { scale: sh.cfg.scale, pitch: sh.cfg.pitch, alpha: [...sh.cfg.alpha], n: sh.cfg.n };
+    const count = () => (sh.cfg.n == null ? 6 : sh.cfg.n);
+    painters.push(
+      bind("cfCount", count,               (v) => sh.apply({ n: v }),            1),
+      bind("cfSize",  () => sh.cfg.scale,  (v) => sh.apply({ scale: v }),        0.05),
+      bind("cfGrain", () => sh.cfg.pitch,  (v) => sh.apply({ pitch: v }),        0.1),
+      bind("cfInk",   () => sh.cfg.alpha[1],
+           (v) => sh.apply({ alpha: [v * 0.45, v] }),                            0.01),
+    );
+  });
+
+  $("cfReset")?.addEventListener("click", () => {
+    if (seaDefaults && window.tank.sea) window.tank.sea.apply(seaDefaults);
+    if (shoalDefaults && window.tank.shoal) window.tank.shoal.apply(shoalDefaults);
+    for (const paint of painters) paint && paint();
+  });
+})();
+</script>
+<script src="/dialog-index-integration.js"></script>
+</body></html>
