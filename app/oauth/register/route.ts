@@ -1,4 +1,4 @@
-import { getOAuthRuntimeConfig, issueRegisteredClient, oauthIssuer, validRedirectUri } from '@/lib/server/oauth';
+import { getOAuthRuntimeConfig, issueRegisteredClient, validRedirectUri } from '@/lib/server/oauth';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +28,5 @@ export async function POST(request: Request) {
     response_types: ['code'],
     token_endpoint_auth_method: 'none',
     scope: 'dialog.read dialog.write offline_access',
-    registration_client_uri: `${oauthIssuer(request)}/oauth/register`,
   }, { status: 201, headers: { 'cache-control': 'no-store' } });
 }
