@@ -1,63 +1,44 @@
 # webMCP_chatDB / Dialog Index
 
-ChatGPT Sites 上で動作する、会話・メモ・ファイルを保存/検索する Dialog Index 実装です。
+ChatGPT Sites 上で動作する、会話・メモ・ファイルの保存・検索基盤です。
 
-このリポジトリは **Dialog Index の実装正本** として扱います。今後は、複数の ZIP / TXT / MD をばらばらに渡すのではなく、原則として **この GitHub リポジトリ + 対象 commit SHA** を受け渡し単位にします。
+このリポジトリを **Dialog Index の実装正本** とします。今後の受け渡しは、原則として **このGitHubリポジトリ + commit SHA** だけに統一します。ZIP・patch・説明TXTを同時にばらばらに渡さない運用にします。
 
-## 現在の状態
+## Production
 
-- Production URL: `https://dialog-index-mcp.mars-inc-7675.chatgpt.site`
+- Site: `https://dialog-index-mcp.mars-inc-7675.chatgpt.site`
 - Existing Sites Project ID: `appgprj_6a977c8675a08191b54f3849ee9f1653`
-- Production v4 を基準に監査・修正した **v5 correction candidate** がこのリポジトリの HEAD
 - D1 binding: `DB`
 - R2 binding: `FILES`
-- WebMCP: 11 tools
+- WebMCP / Site Tools: 11 tools
 - Remote MCP endpoint: `/mcp`
-- DB schema / migration / 既存データの変更: なし
 
-> Production へ v5 を反映するまでは、live production と repo HEAD は同一ではありません。deploy 後にこの節を更新してください。
+> repo HEAD は次回deploy候補です。productionへdeployするまでは、live SiteとHEADが完全一致するとは扱いません。
 
-## 何ができるか
+## 目的
 
-### Web UI
-
-- Tank UI
-- ASCII sea / 左右 shoal
-- 5テーマ切替
-- Records / Indexes / Detail / Activity
-- D1 server-side search
-- R2 file upload / download
-- 実件数・health 表示
-
-### WebMCP / Site Tools
-
-ChatGPT Desktop の built-in browser で Site を開くと、top-level document が `document.modelContext.registerTool()` を使って 11 tools を登録します。
+同じDialog Indexデータを2経路から扱います。
 
 ```text
+WebMCP / Site Tools
 ChatGPT Desktop built-in browser
   -> Dialog Index Site
-  -> WebMCP / Site Tools (11)
-  -> same-origin /api/*
+  -> document.modelContext.registerTool()
+  -> 11 tools
+  -> /api/*
   -> shared dialog-service
   -> D1 DB / R2 FILES
-```
 
-### Remote MCP
-
-`/mcp` に Streamable HTTP/JSON-RPC の Remote MCP 入口があります。
-
-```text
-trusted MCP client
-  -> HTTPS /mcp
-  -> configured static Bearer
-  -> REMOTE_MCP_WORKSPACE_ID
+Remote MCP / ordinary ChatGPT
+ChatGPT Custom App
+  -> OAuth 2.1 + PKCE
+  -> /mcp
+  -> 11 tools
   -> shared dialog-service
-  -> D1 DB / R2 FILES
+  -> same D1 DB / R2 FILES
 ```
 
-現在の static Bearer は trusted external client / probe 用です。**ChatGPT の ordinary chat から Custom MCP App として直接利用するための OAuth 2.1 実装完了を意味しません。**
-
-## WebMCP 11 tools
+## 11 tools
 
 1. `get_dialog_index_overview`
 2. `list_suggested_indexes`
@@ -71,24 +52,73 @@ trusted MCP client
 10. `save_dialog_file_base64`
 11. `organize_text_with_external_ai`
 
-## v4 から今回修正した点
+## ChatGPT Custom App対応
 
-- iframe の並列 API 呼出し前に `/api/session` を確立
-- UI検索を「最新100件のローカル絞込み」から D1 server-side search へ変更
-- `/api/overview` を使って records / indexes の実総数を表示
-- 6件を超える index へ UI から到達可能に修正
-- R2 file record の download UI を追加
-- 固定 demo record / fake count / fake health を除去
-- loading / empty / unavailable 状態を明示
-- Web UI/WebMCP workspace と Remote MCP workspace の一致状態を `/api/health` で確認可能にした
-- 未文書化 `oai-authenticated-user-id` header による Remote MCP 認証 bypass を削除
-- static / UI session order / MCP validation と production probe を追加
+repo HEAD には、ordinary ChatGPTからRemote MCPを接続するためのOAuth 2.1実装を追加済みです。
 
-詳細: `CHANGELOG_V5_CANDIDATE.md`
+実装済み:
+
+- protected resource metadata
+- authorization server metadata
+- Dynamic Client Registration (DCR)
+- Authorization Code flow
+- PKCE `S256`
+- `resource` binding
+- access token / refresh token
+- per-tool `securitySchemes`
+- OAuth scope enforcement
+- `WWW-Authenticate` discovery challenge
+- authorization codeのone-time redemption
+- existing D1 `audit_events` を使ったreplay防止
+- static Bearer互換経路の維持
+
+Endpoints:
+
+```text
+/.well-known/oauth-protected-resource
+/.well-known/oauth-authorization-server
+/oauth/register
+/oauth/authorize
+/oauth/token
+/mcp
+```
+
+詳細な設定手順: [`CUSTOM_APP_SETUP.md`](./CUSTOM_APP_SETUP.md)
+
+## OAuth環境変数
+
+既存のworkspace:
+
+```text
+REMOTE_MCP_WORKSPACE_ID=
+```
+
+ChatGPT Custom App用に追加:
+
+```text
+REMOTE_MCP_OAUTH_APPROVAL_CODE=
+REMOTE_MCP_OAUTH_SUBJECT=dialog-index-owner
+```
+
+推奨:
+
+```text
+REMOTE_MCP_OAUTH_SIGNING_SECRET=
+```
+
+`REMOTE_MCP_OAUTH_SIGNING_SECRET` が未設定の場合は、移行互換のため既存 `REMOTE_MCP_BEARER_TOKEN` を署名secretとして利用できます。ただし、本番では別secretを推奨します。
+
+任意:
+
+```text
+REMOTE_MCP_OAUTH_ALLOWED_EMAILS=
+```
+
+本物のsecretはGitHub・README・ログ・チャットへ書かないでください。
 
 ## Workspace — 最重要
 
-Web UI / WebMCP と Remote MCP は、設定を合わせないと **同じ D1 を使っていても別の論理 workspace** を見ることがあります。
+Web UI / WebMCPとRemote MCPは、同じD1 bindingを使っていても `workspaceId` が違えば別データとして見えます。
 
 ```text
 Web UI + WebMCP
@@ -100,43 +130,67 @@ Remote MCP
 
 同一データを扱う条件:
 
-1. intended browser profile で `POST /api/session`
-2. 返った `workspaceId` を `REMOTE_MCP_WORKSPACE_ID` に設定
-3. 同じ browser session で `/api/health` を確認
-4. `remoteMcp.authentication.workspaceMatchesSession === true` を要求
+1. production Siteで `/api/session` を確立
+2. その `workspaceId` を `REMOTE_MCP_WORKSPACE_ID` に設定
+3. `/api/health` を確認
+4. `remoteMcp.authentication.workspaceMatchesSession === true`
 
-## DB / R2
+## D1 / R2
 
-### D1
+D1主要テーブル:
 
-Binding: `DB`
+```text
+workspaces
+records
+index_aliases
+audit_events
+```
 
-主要テーブル:
+MCP/WebMCPの書込み経路は `audit_events.actor` で確認できます。
 
-- `workspaces`
-- `records`
-- `index_aliases`
-- `audit_events`
+```text
+web-ui
+webmcp
+remote-mcp
+oauth
+```
 
-`audit_events.actor` には入口が残ります。
-
-- `web-ui`
-- `webmcp`
-- `remote-mcp`
-
-### R2
-
-Binding: `FILES`
-
-object key:
+R2 object key:
 
 ```text
 objects/{workspaceId}/{recordId}/{filename}
 ```
 
-## ローカル確認
+DB schema / migration / 既存records / R2 objectsは今回変更していません。
 
-Node.js 22.13+ を使用します。
+## UI
+
+- Tank UI
+- ASCII sea / side shoal
+- 5 themes
+- records / indexes / detail / activity
+- D1 server-side search
+- R2 upload / download
+- real overview counts
+- D1 / R2 / WebMCP / Remote MCP health
+
+## v4以降の修正
+
+- iframe初期API呼出し前に `/api/session` を確立
+- UI検索を最新100件のローカル検索からD1検索へ変更
+- `/api/overview` で正しい総件数を表示
+- 6件を超えるindexへUIから到達可能に修正
+- file download導線を追加
+- demo値 / fake count / fake healthを除去
+- workspace一致状態をhealthへ追加
+- 未文書化headerによるRemote MCP auth bypassを削除
+- OAuth 2.1 / PKCE / DCRをRemote MCPへ追加
+- read/write scopesをtool単位で付与
+- static validation / UI validation / MCP validation / CIを追加
+
+## Local / CI validation
+
+Node.js 22.13+:
 
 ```bash
 npm install
@@ -145,136 +199,89 @@ npm run typecheck
 npm run build
 ```
 
-`npm run validate` は以下を実行します。
+GitHub Actionsでもpush時に同じvalidation/typecheck/buildを実行します。
+
+## Production deploy
+
+**既存Sites Projectだけを更新します。**
+
+変更しないもの:
+
+- Project ID
+- D1 `DB`
+- R2 `FILES`
+- existing D1 schema / migration
+- existing records / R2 objects
+- 11 tool names
+- `/mcp` endpoint
+- SEISEKI
+- 他Sites / 他Cloudflare資産
+
+production反映後にChatGPT Custom Appへ以下を登録します。
 
 ```text
-validate:static
-validate:ui
-validate:mcp
+https://dialog-index-mcp.mars-inc-7675.chatgpt.site/mcp
 ```
 
-Production read-only probe:
-
-```bash
-DIALOG_INDEX_BASE_URL=https://dialog-index-mcp.mars-inc-7675.chatgpt.site \
-  npm run probe:production
-```
-
-Remote MCP authenticated probe を行う場合、Bearer token は shell の環境変数/secret として渡し、ソース・UI・ログ・チャットへ書かないでください。
-
-## Production へ反映する場合
-
-**既存 Project のみ更新します。新規 Site / D1 / R2 は作りません。**
-
-変更禁止境界:
-
-- `.openai/hosting.json` の Project ID / binding
-- `db/*`
-- `drizzle/*`
-- 既存 migration / schema / records / R2 objects
-- `lib/server/dialog-service.ts` の既存保存意味論
-- `lib/dialog-tools.ts` の11 tool名・schema
-- `app/useWebMcp.ts`
-- `app/webmcp-adapter.ts`
-- Remote MCP endpoint `/mcp`
-- SEISEKI / 他 Site / 他 Cloudflare 資産
-
-手順は `SITES_DEPLOY_INSTRUCTION.txt` と `DEPLOY_AND_E2E.md` を参照してください。
-
-## DBまでの疎通完了条件
-
-「validation が PASS」だけでは完了扱いにしません。最終的には production で以下を確認します。
+その後:
 
 ```text
-WebMCP
-  -> marker A を save
-  -> D1 records
-  -> audit_events(actor=webmcp)
+Scan Tools
+ -> OAuth authorize
+ -> 11 tools discovered
+ -> ordinary chatでsave/search
+ -> D1 audit actor=remote-mcp
+```
 
-Remote MCP
-  -> marker B を save
+詳しくは [`CUSTOM_APP_SETUP.md`](./CUSTOM_APP_SETUP.md)。
+
+## DBまでの最終疎通条件
+
+```text
+Remote MCPでmarker A保存
   -> D1 records
   -> audit_events(actor=remote-mcp)
 
-WebMCP から marker B を search
-Remote MCP から marker A を search
+WebMCPでmarker A検索
+  -> same record
+
+WebMCPでmarker B保存
+  -> D1 records
+  -> audit_events(actor=webmcp)
+
+Remote MCPでmarker B検索
+  -> same record
+
 workspaceMatchesSession === true
 ```
 
-これが通れば、WebMCP / Remote MCP が **同一 workspace / 同一 D1 まで疎通済み** と判断できます。
+これが通ったら、Remote MCPとWebMCPが同一workspace / 同一D1まで疎通済みと判定します。
 
----
+## 受け渡しルール
 
-# ファイル受け渡しルール
-
-ここを今後の標準にします。
-
-## 1. 通常の開発・Sites実装依頼
-
-**渡すものは1つだけ:**
+今後は基本的にこれだけ渡します。
 
 ```text
-https://github.com/an-non/webMCP_chatDB
+Repository: https://github.com/an-non/webMCP_chatDB
+Commit: <target commit SHA>
 ```
 
-加えて対象 commit SHA を指定します。ZIPや個別ファイルを重ねて渡しません。
-
-指示:
+Sitesへの指示:
 
 ```text
-このrepo/commitを正本として既存Dialog Index Sites Projectへ反映する。
-新しいSite/D1/R2は作らず、READMEとSITES_DEPLOY_INSTRUCTION.txtの境界を守る。
+このrepo/commitを実装正本として、既存Dialog Index Sites Projectへ反映する。
+新規Site/D1/R2を作らない。
+READMEとCUSTOM_APP_SETUP.mdの境界を守る。
 ```
 
-## 2. production v4 に「今回の差分だけ」適用する場合
-
-**渡すもの:**
-
-```text
-patches/production-v4-to-v5-candidate.patch
-```
-
-だけを実装差分として指定します。
-
-説明は:
-
-```text
-CHANGELOG_V5_CANDIDATE.md
-```
-
-を参照させます。
-
-`patch` に含まれないファイルを変更させません。
-
-## 3. ファイルで渡さざるを得ない場合
-
-「フルソース」と「差分」を同時に渡さないことを原則にします。
-
-- フル置換/新しい作業環境: repo HEAD のソース一式
-- 既存v4への最小修正: patch 1本のみ
-
-どちらを使うかを必ず冒頭で明示します。
-
-## Repository layout
-
-```text
-app/                      UI / API / WebMCP registration
-lib/                      shared tool contract / server service / Remote MCP
-db/                       D1 schema
-drizzle/                  existing migration
-public/                    Tank UI + integration runtime
-scripts/                   validation / production probe
-.openai/hosting.json       existing Sites project + DB/R2 bindings
-patches/                   production baseline向け明示差分
-README.md                  正本・利用方法・受け渡しルール
-SITES_DEPLOY_INSTRUCTION.txt
-DEPLOY_AND_E2E.md
-CHANGELOG_V5_CANDIDATE.md
-```
+既存productionへ差分だけ適用する必要がある場合に限り、明示したpatch 1本だけを渡します。フルソースとpatchを同時に渡しません。
 
 ## Security
 
-- `.env` / token / credential を commit しない
-- Bearer token を README、issue、log、chat に貼らない
-- workspace ID を tool input から任意指定させない
-- Remote MCP は認証なしで data operation を許可しない
+- secret/tokenをcommitしない
+- secret/tokenをチャットへ貼らない
+- workspace IDをMCP tool inputから任意指定させない
+- Remote MCP data operationは認証なしで許可しない
+- OAuth access tokenはissuer/audience/expiry/scope/workspaceを検証
+- authorization codeはPKCE S256 + short expiry + one-time redemption
+- manual approval codeは単一owner運用向け。multi-user/public公開時はestablished IdPへ置換する
