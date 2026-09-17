@@ -1,0 +1,42 @@
+{
+  "manifest_version": 3,
+  "name": "Dialog Workspace Bridge",
+  "version": "0.4.3",
+  "description": "Audited plain-text Workspace bridge with durable outbox and independent read verification.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "sidePanel",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://dialog-index-mcp.mars-inc-7675.chatgpt.site/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Open Dialog Workspace Bridge"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*"
+      ],
+      "js": [
+        "protocol.js",
+        "dom-adapters.js",
+        "content.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "version_name": "V19.2 Stabilization RC1.1 - external AI scan fix",
+  "minimum_chrome_version": "120"
+}

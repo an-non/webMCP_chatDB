@@ -1,0 +1,25 @@
+:root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+* { box-sizing: border-box; }
+body { margin: 0; background: Canvas; color: CanvasText; }
+main { padding: 14px; max-width: 720px; margin: 0 auto; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+h1 { margin: 0; font-size: 18px; }
+h2 { margin: 0 0 10px; font-size: 14px; }
+.sub, .hint { margin: 3px 0 0; opacity: .68; font-size: 12px; }
+section { border-top: 1px solid rgba(127,127,127,.25); padding: 14px 0; }
+.notice { border: 1px solid rgba(90,140,255,.4); border-radius: 10px; padding: 10px; margin-top: 12px; background: rgba(90,140,255,.07); }
+.notice p { margin: 5px 0 0; font-size: 12px; line-height: 1.45; }
+.pill { border: 1px solid currentColor; border-radius: 999px; padding: 3px 8px; font-size: 11px; opacity: .75; }
+label { display: block; font-size: 12px; margin: 8px 0; }
+input, textarea, button { font: inherit; }
+input, textarea { width: 100%; margin-top: 5px; padding: 8px; border-radius: 8px; border: 1px solid rgba(127,127,127,.45); background: Canvas; color: CanvasText; }
+textarea { resize: vertical; }
+button { padding: 7px 10px; border-radius: 8px; border: 1px solid rgba(127,127,127,.45); background: ButtonFace; color: ButtonText; cursor: pointer; }
+button:disabled { opacity: .45; cursor: wait; }
+.row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.danger { border-color: rgba(220,70,70,.7); }
+.mono, code, pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.small { font-size: 11px; overflow-wrap: anywhere; }
+pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 44vh; overflow: auto; padding: 9px; border-radius: 8px; background: rgba(127,127,127,.09); font-size: 11px; line-height: 1.45; }
+.native code { display: block; margin-top: 8px; overflow-wrap: anywhere; font-size: 11px; }

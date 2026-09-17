@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Dialog Workspace Bridge</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Dialog Workspace</h1>
+        <p class="sub">V19.2 Stabilization RC1.1</p>
+      </div>
+      <span id="status" class="pill">checking…</span>
+    </header>
+
+    <section class="notice">
+      <strong>Safe mode</strong>
+      <p>通常回答を維持したまま、AIが末尾に出した平文Workspace sidecarだけをpaired Browser Agentで実行します。READY/ACTION-only/RESULT再注入は行いません。</p>
+    </section>
+
+    <section>
+      <h2>Current page</h2>
+      <div id="pageMeta" class="mono small">loading…</div>
+      <div class="row">
+        <button id="refreshContext">Refresh</button>
+        <button id="useSelection">Use selected text</button>
+      </div>
+    </section>
+
+    <section id="pairSection">
+      <h2>Pairing</h2>
+      <label>Pairing Code
+        <input id="pairingCode" autocomplete="off" placeholder="bap:..." />
+      </label>
+      <div class="row">
+        <button id="pair">Pair</button>
+        <button id="forget" class="danger">Forget token</button>
+      </div>
+      <p class="hint">Codeは Workspace → Agents で発行。</p>
+    </section>
+
+    <section>
+      <h2>Inspect</h2>
+      <div class="grid3">
+        <button data-op="workspace.overview">Overview</button>
+        <button data-op="store.list">Stores</button>
+        <button data-op="workspace.activity">Activity</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>Search / Get</h2>
+      <label>Search query
+        <input id="searchQuery" placeholder="OAuth / ユキ / Version 17…" />
+      </label>
+      <div class="row"><button id="search">Search</button></div>
+      <label>Record ID
+        <input id="recordId" placeholder="rec:..." />
+      </label>
+      <div class="row"><button id="getRecord">Get</button></div>
+    </section>
+
+    <section>
+      <h2>Save note</h2>
+      <label>Title
+        <input id="saveTitle" placeholder="title" />
+      </label>
+      <label>Summary (optional)
+        <textarea id="saveSummary" rows="2" placeholder="summary"></textarea>
+      </label>
+      <label>Tags (optional, comma separated)
+        <input id="saveTags" placeholder="yuki, relationship, continuity" />
+      </label>
+      <label>Suggested index (optional)
+        <input id="saveSuggestedIndex" placeholder="relationship/continuity" />
+      </label>
+      <label>Content
+        <textarea id="saveContent" rows="8" placeholder="選択テキストや保存したい内容"></textarea>
+      </label>
+      <div class="row"><button id="save">Save</button></div>
+      <hr />
+      <label>Pending payload JSON (optional)
+        <input id="payloadFile" type="file" accept=".json,application/json" />
+      </label>
+      <div class="row">
+        <button id="loadPayload">Load payload JSON</button>
+        <button id="updateRecord">Update Record ID</button>
+      </div>
+      <p class="hint">Load reads payload.title/summary/tags/suggestedIndex/content into the fields above. Update patches the Record ID from Search / Get without creating a duplicate record.</p>
+    </section>
+
+    <section>
+      <h2>Natural command fallback</h2>
+      <textarea id="naturalCommand" rows="3" placeholder="DBになにがある？ / 前のOAuthを探して"></textarea>
+      <div class="row"><button id="runNatural">Run</button></div>
+      <p class="hint">これはBrowser fallback。AI自身のtool選択ではありません。</p>
+    </section>
+
+    <section>
+      <h2>AI-selected auto mode</h2>
+      <div class="row"><button id="copySetup">Copy AI setup (once per new chat)</button><button id="showJobs">Outbox / verification</button></div>
+      <label>Retry job ID <input id="retryJobId" placeholder="Copy an id from Outbox" /></label>
+      <div class="row"><button id="retryJob">Retry same job</button></div>
+      <p class="hint">No automatic message injection. VERIFIED requires a separate successful record.get and matching content hash. Setup text must be given to a new AI chat once.</p>
+      <label class="row" style="align-items:center; gap:8px">
+        <input id="autoSidecar" type="checkbox" checked />
+        <span>AI sidecar auto-execute</span>
+      </label>
+      <div class="row">
+        <button id="scanAuto">Scan now</button>
+        <button id="showAutoResult">Show last auto result</button>
+      </div>
+      <p class="hint">通常回答は維持。READY/ACTION-only/RESULT再注入は行わない。</p>
+    </section>
+
+    <section>
+      <h2>Result</h2>
+      <pre id="result">No operation yet.</pre>
+      <div class="row"><button id="copyResult">Copy result</button></div>
+    </section>
+
+    <section class="native">
+      <h2>Native MCP</h2>
+      <p>対応クライアントではBrowser BridgeよりNative MCPを使用。</p>
+      <code>https://dialog-index-mcp.mars-inc-7675.chatgpt.site/api/remote-mcp</code>
+    </section>
+  </main>
+  <script src="protocol.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>
