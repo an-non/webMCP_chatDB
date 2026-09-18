@@ -4,6 +4,8 @@ const state = {
   context: null,
   paired: false,
   lastResult: null,
+  tabId: null,
+  runtime: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -32,6 +34,7 @@ function bind() {
     catch (error) { showError(error); }
   });
   $('refreshContext').addEventListener('click', refreshContext);
+  $('reloadChatTab').addEventListener('click', reloadChatTab);
   $('useSelection').addEventListener('click', () => {
     const text = state.context?.selectedText || state.context?.latestUser || '';
     $('saveContent').value = text;
@@ -117,10 +120,17 @@ async function refreshContext() {
     const boundTabId = Number(new URL(location.href).searchParams.get('tab'));
     const tab = boundTabId > 0 ? await chrome.tabs.get(boundTabId) : tabs[0];
     if (!tab?.id) throw new Error('Open this panel beside a supported AI chat tab');
-    const response = await chrome.tabs.sendMessage(tab.id, { type: 'dialog-bridge-page-context' });
+    state.tabId = tab.id;
+    state.runtime = await background({ type: 'dialog-bridge-runtime-info', pageOrigin: new URL(tab.url).origin });
+    let response;
+    try { response = await chrome.tabs.sendMessage(tab.id, { type: 'dialog-bridge-page-context' }); }
+    catch (error) {
+      throw new Error(`TAB_RELOAD_REQUIRED: ${messageOf(error)}`);
+    }
     if (!response?.ok) throw new Error(response?.error || 'Could not read page context');
     state.context = response.result;
-    $('pageMeta').textContent = `${state.context.site} • ${state.context.origin}\n${state.context.title || ''}`;
+    const mismatch = state.context.contentRelease !== state.runtime.backgroundRelease;
+    $('pageMeta').textContent = `${state.context.site} • ${state.context.origin}\n${state.context.title || ''}\ncontent=${state.context.contentRelease || 'unknown'} background=${state.runtime.backgroundRelease} manifest=${state.runtime.manifestVersion}${mismatch ? '\nTAB_RELOAD_REQUIRED' : ''}`;
   } catch (error) {
     state.context = null;
     $('pageMeta').textContent = messageOf(error);
@@ -129,12 +139,24 @@ async function refreshContext() {
   }
 }
 
+async function reloadChatTab() {
+  if (!state.tabId) return showError('Open a supported AI chat tab first');
+  setBusy(true);
+  try {
+    await chrome.tabs.reload(state.tabId);
+    render({ ok: true, state: 'TAB_RELOAD_REQUESTED', tabId: state.tabId, note: 'Wait for the page to finish loading, then Refresh.' });
+  } catch (error) { showError(error); }
+  finally { setBusy(false); }
+}
+
 async function refreshStatus() {
   if (!state.context?.origin) return setStatus(false, 'no supported tab');
   try {
     const result = await background({ type: 'dialog-agent-status', pageOrigin: state.context.origin });
     state.paired = Boolean(result?.paired);
-    setStatus(state.paired, state.paired ? `paired • ${result.workspaceId || 'workspace'}` : `not paired: ${result.reason || 'unknown'}`);
+    const detail = result?.serverCode ? ` • ${result.serverCode}` : '';
+    const source = result?.tokenSource ? ` • ${result.tokenSource}` : '';
+    setStatus(state.paired, state.paired ? `paired • ${result.workspaceId || 'workspace'}${source}` : `not paired: ${result.reason || 'unknown'}${detail}${source}`);
   } catch (error) {
     state.paired = false;
     setStatus(false, messageOf(error));
