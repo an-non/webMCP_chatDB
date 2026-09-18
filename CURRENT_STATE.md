@@ -197,3 +197,35 @@ NOT TESTED / external gate:
 - live ChatGPT + Claude shared-pair Save -> D1 -> independent Get -> VERIFIED E2E.
 
 Do not merge to `main` and do not overwrite the stale Git root until Work first compares the touched RC1 server paths against the current editable Sites source and the full Work validation/deploy gate passes.
+
+
+## RC1.2a live Claude evidence — 2026-09-18
+
+Live Edge/Claude evidence after installing Bridge 0.4.5 / `v19.2-stabilization-rc1.2a`:
+
+- contentRelease: `v19.2-stabilization-rc1.2a`
+- backgroundRelease: `v19.2-stabilization-rc1.2a`
+- manifestVersion: `0.4.5`
+- reloadRequired: `false`
+- assistantNodeCount: `5`
+- scannedNodeCount: `2`
+- sidecar start/end detected: PASS
+- Claude multiline-rendered DWCMD parse: PASS
+- visible-history replay: PASS
+- durable enqueue: PASS
+- selected action: `external-live-20260915-claude-002`
+- outbox state immediately after enqueue: `queued`
+
+Authentication then failed before server command execution:
+
+- paired: `false`
+- tokenPresent: `true`
+- tokenSource: `shared-v2`
+- workspace: `ws:6b73f7e638df163676cc057f2dc75b80`
+- serverCode: `AUTH_REQUIRED`
+- serverError: `browser agent origin mismatch`
+- HTTP: `401`
+
+Interpretation: Bridge RC1.2a shared credential storage is active locally, but the currently deployed Sites Browser Agent authentication path is still enforcing the old per-origin token binding. The queued Claude job has therefore not reached command execution / D1 / independent Get verification.
+
+Next gate: deploy the RC1.2 server authentication changes to the existing Sites project, then clear/re-pair once and retry the existing queued action or issue one fresh DWCMD. Do not diagnose this as a Claude DOM/parser failure.
