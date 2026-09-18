@@ -150,8 +150,16 @@ async function reloadChatTab() {
 }
 
 async function refreshStatus() {
-  if (!state.context?.origin) return setStatus(false, 'no supported tab');
   try {
+    if (!state.context?.origin) {
+      const local = await background({ type: 'dialog-bridge-runtime-info', pageOrigin: null });
+      state.paired = Boolean(local?.tokenPresent);
+      const source = local?.tokenSource ? ` • ${local.tokenSource}` : '';
+      const workspace = local?.localWorkspaceId ? ` • ${local.localWorkspaceId}` : '';
+      return setStatus(state.paired, state.paired
+        ? `paired locally${workspace}${source} • open a supported AI tab to verify`
+        : 'not paired • no supported AI tab');
+    }
     const result = await background({ type: 'dialog-agent-status', pageOrigin: state.context.origin });
     state.paired = Boolean(result?.paired);
     const detail = result?.serverCode ? ` • ${result.serverCode}` : '';
@@ -164,16 +172,15 @@ async function refreshStatus() {
 }
 
 async function pair() {
-  if (!state.context?.origin) return showError('Open a supported AI chat tab first');
   const code = $('pairingCode').value.trim();
   if (!code) return showError('Pairing Code is required');
   setBusy(true);
   try {
-    const result = await background({ type: 'dialog-agent-pair', pairingCode: code, pageOrigin: state.context.origin });
+    const result = await background({ type: 'dialog-agent-pair', pairingCode: code, pageOrigin: state.context?.origin || null });
     state.paired = Boolean(result?.paired);
     $('pairingCode').value = '';
-    setStatus(state.paired, `paired • ${result.workspaceId || 'workspace'}`);
-    render({ ok: true, paired: state.paired, workspaceId: result.workspaceId, pageOrigin: result.pageOrigin });
+    setStatus(state.paired, `paired • ${result.workspaceId || 'workspace'} • ${result.tokenScope || 'shared'}`);
+    render({ ok: true, paired: state.paired, workspaceId: result.workspaceId, pageOrigin: result.pageOrigin || null, tokenScope: result.tokenScope || null });
   } catch (error) {
     showError(error);
   } finally {
