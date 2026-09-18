@@ -148,3 +148,52 @@ Validation status:
 - current editable Work/Sites source byte comparison: NOT TESTED because that source is not currently exposed to this runtime
 
 Next gate: compare the current Work/Sites source with the reconstructed-root fingerprint before replacing the stale Git root or merging to `main`.
+
+
+## RC1.2 candidate status — 2026-09-18
+
+A V19.2 Stabilization RC1.2 candidate has been prepared from the accepted RC1 server snapshot plus the byte-verified RC1.1 Bridge lineage.
+
+Candidate fingerprints:
+- package: `dialog-workspace-v19.2-stabilization-rc1.2-candidate.zip`
+- SHA-256: `d843791a6a3ef5a356a37068cc5c488ae9f8fcbae3732b7d4e68cbb6f85df597`
+- server package version: `0.11.1`
+- Browser Bridge manifest: `0.4.4`
+- release: `v19.2-stabilization-rc1.2`
+
+Implemented candidate changes:
+1. content/background release handshake and explicit `TAB_RELOAD_REQUIRED` diagnostics for stale already-open chat documents after extension reload;
+2. Side Panel bound-tab reload control and clearer runtime/auth diagnostics;
+3. Claude/Markdown DWCMD parser tolerance for renderer-created blank lines / BOM / zero-width prefix noise only before a valid save/search/get prefix, without normalizing save payload bytes;
+4. forced `Scan now` performs real visible-history replay newest-first; automatic scan still does not replay historical messages;
+5. first forced scan after SPA conversation URL change scans immediately instead of only resetting the baseline;
+6. one shared Browser Agent credential for the explicit supported AI-origin allowlist (ChatGPT, Claude, Gemini), with v1 per-origin/single-legacy migration fallback;
+7. Forget clears shared + old per-origin/legacy credentials together to prevent stale-token fallback resurrection.
+
+Git Bridge source on this branch was verified against the locally tested RC1.2 Bridge files by Git blob/hash-object equivalence for every changed Bridge file.
+
+Local validation PASS:
+- server stability: 17 scenarios;
+- Bridge outbox: 11 scenarios;
+- Bridge worker/shared credential: 11 checks;
+- CLI integration: 8 checks;
+- existing DOM fixtures: ChatGPT 7/7, Claude 7/7, Gemini 7/7;
+- added RC1.2 Bridge regression: 6/6;
+- manual Workspace UI: 10/10;
+- validate-static PASS;
+- validate-ui-session-order PASS;
+- validate-workspace: 40 checks;
+- validate-smoke-mcp PASS;
+- validate-mcp PASS (20 tools);
+- validate-browser-agent: 74 checks;
+- validate-natural-command: 61 checks;
+- validate-universal-command: 25 checks.
+
+NOT TESTED / external gate:
+- fresh dependency-backed `npm ci` / `npm run typecheck` / `npm run build`: current isolated runtime lacks cached `youch-core@0.3.3`; Work must run these before deployment;
+- direct comparison against the current editable Work/Sites source: Work source is not exposed to this runtime;
+- production RC1.2 deployment;
+- native installed Edge extension reload/document lifecycle;
+- live ChatGPT + Claude shared-pair Save -> D1 -> independent Get -> VERIFIED E2E.
+
+Do not merge to `main` and do not overwrite the stale Git root until Work first compares the touched RC1 server paths against the current editable Sites source and the full Work validation/deploy gate passes.
