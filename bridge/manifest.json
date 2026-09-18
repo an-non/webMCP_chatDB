@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Dialog Workspace Bridge",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "Audited plain-text Workspace bridge with durable outbox and independent read verification.",
   "permissions": [
     "storage",
@@ -37,6 +37,6 @@
       "run_at": "document_idle"
     }
   ],
-  "version_name": "V19.2 Stabilization RC1.2 - shared pairing and replay fix",
+  "version_name": "V19.2 Stabilization RC1.2a - tabless shared pairing hotfix",
   "minimum_chrome_version": "120"
 }
