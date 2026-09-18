@@ -2,6 +2,7 @@
 importScripts('protocol.js', 'outbox.js');
 const BASE = 'https://dialog-index-mcp.mars-inc-7675.chatgpt.site';
 const SESSION_KEY = 'dialogWorkspaceSessionsV1';
+const SHARED_SESSION_KEY = 'dialogWorkspaceSharedSessionV2';
 const AUTO_KEY = 'dialogWorkspaceAutoSidecarEnabled';
 const LEGACY_TOKEN = 'dialogWorkspaceAgentToken';
 const LEGACY_PAIR = 'dialogWorkspacePairingId';
@@ -53,9 +54,11 @@ async function handle(message, sender) {
   switch (message.type) {
     case 'dialog-bridge-open-panel': return openPanel(sender.tab?.id ?? message.tabId);
     case 'dialog-agent-status': return status(pageOrigin);
+    case 'dialog-bridge-runtime-info': return runtimeInfo(pageOrigin);
     case 'dialog-bridge-state': {
       const enabled = (await chrome.storage.local.get(AUTO_KEY))[AUTO_KEY] !== false;
-      return { enabled, release: DWProtocol.RELEASE, jobs: await queue.list(pageOrigin, message.pageUrl) };
+      return { enabled, backgroundRelease: DWProtocol.RELEASE, manifestVersion: chrome.runtime.getManifest().version,
+        jobs: await queue.list(pageOrigin, message.pageUrl) };
     }
     case 'dialog-bridge-enqueue': {
       if (trusted) throw new Error('enqueue_requires_chat_content_script');
@@ -77,11 +80,10 @@ async function handle(message, sender) {
     case 'dialog-agent-pair': return pair(message.pairingCode, pageOrigin);
     case 'dialog-agent-forget':
       await mutateSessions(async () => {
-        const sessions = (await chrome.storage.local.get(SESSION_KEY))[SESSION_KEY] || {};
-        delete sessions[pageOrigin]; await chrome.storage.local.set({ [SESSION_KEY]: sessions });
-        if (pageOrigin === 'https://chatgpt.com') await chrome.storage.local.remove([LEGACY_TOKEN, LEGACY_PAIR]);
+        await chrome.storage.local.set({ [SESSION_KEY]: {} });
+        await chrome.storage.local.remove([SHARED_SESSION_KEY, LEGACY_TOKEN, LEGACY_PAIR]);
       });
-      return { paired: false, reason: 'local_token_removed_only' };
+      return { paired: false, reason: 'local_shared_token_removed', pageOrigin };
     case 'dialog-agent-command': return authed('/api/agent/command', pageOrigin, message.payload);
     case 'dialog-agent-execute': return authed('/api/agent/execute', pageOrigin, message.payload);
     case 'dialog-bridge-jobs': return queue.list(pageOrigin);
@@ -95,13 +97,21 @@ async function handle(message, sender) {
 function origin(url) {
   try { const value = new URL(url).origin; return DWProtocol.ORIGINS.includes(value) ? value : ''; } catch { return ''; }
 }
-async function tokenFor(pageOrigin) {
-  const saved = await chrome.storage.local.get([SESSION_KEY, LEGACY_TOKEN, LEGACY_PAIR]);
-  if (saved[SESSION_KEY]?.[pageOrigin]?.token) return saved[SESSION_KEY][pageOrigin].token;
-  // Legacy v19.x used a single token. Only try it for the original ChatGPT
-  // origin; never copy an unverified token into other AI origins.
-  if (pageOrigin === 'https://chatgpt.com' && typeof saved[LEGACY_TOKEN] === 'string') return saved[LEGACY_TOKEN];
-  return '';
+async function credentialFor(pageOrigin) {
+  const saved = await chrome.storage.local.get([SHARED_SESSION_KEY, SESSION_KEY, LEGACY_TOKEN, LEGACY_PAIR]);
+  const shared = saved[SHARED_SESSION_KEY];
+  if (shared?.token) return { token: shared.token, pairingId: shared.pairingId || null, workspaceId: shared.workspaceId || null, source: 'shared-v2' };
+  const sessions = saved[SESSION_KEY] || {};
+  if (sessions?.[pageOrigin]?.token) return { ...sessions[pageOrigin], source: 'per-origin-v1' };
+
+  // Migration bridge: if there is exactly one distinct legacy credential,
+  // allow it from any supported AI origin after the server is upgraded to
+  // shared-origin pairing. Multiple distinct tokens are never guessed between.
+  const candidates = Object.values(sessions).filter(value => value?.token);
+  if (typeof saved[LEGACY_TOKEN] === 'string') candidates.push({ token: saved[LEGACY_TOKEN], pairingId: saved[LEGACY_PAIR] || null });
+  const unique = [...new Map(candidates.map(value => [value.token, value])).values()];
+  if (unique.length === 1) return { ...unique[0], source: 'single-legacy-migration' };
+  return null;
 }
 async function request(path, body, headers = {}) {
   const controller = new AbortController();
@@ -114,7 +124,7 @@ async function request(path, body, headers = {}) {
     const result = await response.json().catch(() => null);
     if (!response.ok || !result || result.ok !== true) {
       throw Object.assign(new Error(result?.error || `HTTP_${response.status}`), {
-        code: result?.code, status: response.status,
+        code: result?.code, details: result?.details ?? null, status: response.status,
         retryable: [408, 425, 429, 500, 502, 503, 504].includes(response.status),
       });
     }
@@ -125,16 +135,27 @@ async function request(path, body, headers = {}) {
   } finally { clearTimeout(timer); }
 }
 async function authed(path, pageOrigin, payload) {
-  const token = await tokenFor(pageOrigin);
-  if (!token) throw Object.assign(new Error('local_token_missing'), { retryable: false });
-  // A 401 is diagnostic; it does not silently destroy the credential.
-  return request(path, payload, { authorization: `Bearer ${token}`, 'x-dialog-agent-page-origin': pageOrigin });
+  const credential = await credentialFor(pageOrigin);
+  if (!credential?.token) throw Object.assign(new Error('local_token_missing'), { retryable: false });
+  return request(path, payload, { authorization: `Bearer ${credential.token}`, 'x-dialog-agent-page-origin': pageOrigin });
+}
+async function runtimeInfo(pageOrigin) {
+  const credential = await credentialFor(pageOrigin);
+  return { backgroundRelease: DWProtocol.RELEASE, manifestVersion: chrome.runtime.getManifest().version,
+    pageOrigin, tokenPresent: Boolean(credential?.token), tokenSource: credential?.source || null,
+    localPairingId: credential?.pairingId || null, localWorkspaceId: credential?.workspaceId || null };
 }
 async function status(pageOrigin) {
-  if (!await tokenFor(pageOrigin)) return { paired: false, reason: 'local_token_missing', pageOrigin };
-  try { return await authed('/api/agent/status', pageOrigin, {}); }
-  catch (error) {
-    if (error.status === 401 || error.status === 403) return { paired: false, reason: 'server_rejected_token', pageOrigin };
+  const credential = await credentialFor(pageOrigin);
+  const local = await runtimeInfo(pageOrigin);
+  if (!credential?.token) return { paired: false, reason: 'local_token_missing', ...local };
+  try {
+    const remote = await authed('/api/agent/status', pageOrigin, {});
+    return { ...remote, ...local, paired: true };
+  } catch (error) {
+    if (error.status === 401 || error.status === 403) return { paired: false, reason: 'server_rejected_token',
+      serverCode: error.code || null, serverError: error.message || null, serverDetails: error.details || null,
+      httpStatus: error.status, ...local };
     throw error;
   }
 }
@@ -143,12 +164,12 @@ async function pair(code, pageOrigin) {
   const result = await request('/api/agent/pair', { pairingCode: code.trim(), pageOrigin, clientName: `Dialog Workspace Bridge ${DWProtocol.RELEASE}` });
   if (!result.token) throw new Error('pair_response_missing_token');
   await mutateSessions(async () => {
-    const sessions = (await chrome.storage.local.get(SESSION_KEY))[SESSION_KEY] || {};
-    sessions[pageOrigin] = { token: result.token, pairingId: result.pairingId, workspaceId: result.workspaceId };
-    await chrome.storage.local.set({ [SESSION_KEY]: sessions });
-    if (pageOrigin === 'https://chatgpt.com') await chrome.storage.local.set({ [LEGACY_TOKEN]: result.token, [LEGACY_PAIR]: result.pairingId });
+    await chrome.storage.local.set({ [SHARED_SESSION_KEY]: {
+      token: result.token, pairingId: result.pairingId, workspaceId: result.workspaceId, pairedAt: Date.now(), initialPageOrigin: pageOrigin,
+    } });
   });
-  return { paired: true, pairingId: result.pairingId, workspaceId: result.workspaceId, pageOrigin };
+  return { paired: true, pairingId: result.pairingId, workspaceId: result.workspaceId, pageOrigin,
+    tokenScope: 'shared-supported-ai-origins' };
 }
 async function openPanel(tabId) {
   if (Number.isInteger(tabId) && chrome.sidePanel?.open) {
