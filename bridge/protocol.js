@@ -1,7 +1,7 @@
 /* Shared by the real content script, worker and their regression tests. */
 (() => {
   'use strict';
-  const RELEASE = 'v19.2-stabilization-rc1.1';
+  const RELEASE = 'v19.2-stabilization-rc1.2';
   const MAX_COMMAND_BYTES = 800000; // Leaves room for JSON escaping and metadata.
   const START = '\u27e6DWCMD';
   const END = '\u27e6/DWCMD\u27e7';
@@ -14,7 +14,7 @@
   }
   function parseCommand(command) {
     if (typeof command !== 'string' || byteLength(command) > MAX_COMMAND_BYTES) throw new Error('command_too_large_or_invalid');
-    const match = command.match(/^[ \t]*(save|\u4fdd\u5b58(?:\u3057\u3066)?|search|find|\u691c\u7d22(?:\u3057\u3066)?|get)[ \t]*[:\uff1a]/iu);
+    const match = command.match(/^[\s\uFEFF\u200B-\u200D\u2060]*(save|\u4fdd\u5b58(?:\u3057\u3066)?|search|find|\u691c\u7d22(?:\u3057\u3066)?|get)[ \t\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF\u200B-\u200D\u2060]*[:\uff1a]/iu);
     if (!match) throw new Error('auto_command_requires_save_search_or_get_prefix');
     const verb = match[1].toLowerCase();
     let body = normalize(command.slice(match[0].length));
@@ -30,7 +30,11 @@
     if (!match) return null;
     if (match[2].includes(START) || match[2].includes(END)) throw new Error('nested_or_multiple_sidecar');
     let command = match[2];
-    if (command.startsWith('\n')) command = command.slice(1);
+    // Claude/Markdown renderers can create multiple block-separator newlines or
+    // invisible Unicode format characters between the envelope and verb. Strip
+    // only that prefix when it is immediately followed by a valid command verb;
+    // never normalize the save payload itself.
+    command = command.replace(/^[\s\uFEFF\u200B-\u200D\u2060]+(?=(?:save|\u4fdd\u5b58(?:\u3057\u3066)?|search|find|\u691c\u7d22(?:\u3057\u3066)?|get)[ \t\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000\uFEFF\u200B-\u200D\u2060]*[:\uff1a])/iu, '');
     // A newline immediately before the closing marker is envelope framing.
     if (command.endsWith('\n')) command = command.slice(0, -1);
     return { id: match[1] || null, command, ...parseCommand(command) };
