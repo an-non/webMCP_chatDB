@@ -1,4 +1,4 @@
-# Dialog Workspace Bridge - V19.2 Stabilization RC1.2
+# Dialog Workspace Bridge - V19.2 Stabilization RC1.2a
 
 Candidate only. Upgrade the server first; this extension blocks keyed auto saves when the server lacks idempotency/read-verification capabilities.
 
@@ -18,3 +18,7 @@ A visible suffix is intentional. No READY, composer writes, automatic submit, re
 Supported candidate DOM adapters: ChatGPT, Claude and Gemini. Verified in local DOM fixtures, NOT the user's live pages. A selector mismatch leaves an explicit adapter status and does not interfere with chat. Minimum Chrome manifest version: 120. No claim that desktop extensions run on mobile; use `/workspace-console.html` there.
 
 Storage: one shared bearer token (with per-origin v1 migration fallback) and up to 64 queue jobs / 6MB, private to extension trusted contexts. Queue records contain the command body and read results needed for retry/verification; they are local data, not hidden model memory. Completed history is bounded. Do not export storage wholesale or paste tokens into chat. Auto execution is restricted to save/search/get; destructive operations remain explicit management actions.
+
+## RC1.2a hotfix
+
+Pairing no longer requires an open supported AI tab. A pairing code can be exchanged directly from the Side Panel; a supported ChatGPT/Claude/Gemini tab is only required for status verification, scanning, and Workspace operations.
