@@ -108,3 +108,43 @@ These fingerprints identify the local reconciliation inputs used to establish th
 The current issue is not that Git was never intended to be used. Git was already declared as the source of truth; the problem is that later V19.x work bypassed that source-of-truth loop by moving through Work/ZIP patches without committing the resulting production state back to Git.
 
 The goal of this reconciliation is therefore not a new architecture. It is to restore the architecture that was already intended: Git -> validated Work deployment -> Sites, with the browser extension versioned alongside the server but deployed separately.
+
+## Reconstructed server-source lineage — verified 2026-09-18
+
+The retained V19.x artifacts were rechecked and the server candidate was reconstructed deterministically:
+
+1. `dialog-index-v19-universal-plaintext-full.zip`
+   - SHA-256: `776446c3062096cbf2481255a30187c1166846f75a40f4d004a97a781c0d8234`
+   - package version: `0.11.0`
+2. Apply the two-file V19.2 payload fix from `dialog-index-v19.2-payload-fix-patch.zip`
+   - SHA-256: `56d39378d66f31a6a5e38b5149a08aad9e8843716b4e5780f1b3aa514b3cf5f0`
+3. Run RC1 `apply.mjs --check` against that root.
+   - PASS: `READY_FOR_REVIEW`
+   - `dbTouched: false`
+4. Run RC1 `apply.mjs --apply`.
+   - PASS: `APPLIED_NOT_DEPLOYED`
+   - 15 writes; `scripts/validate-natural-command.ts` was already at the accepted candidate hash.
+   - `dbTouched: false`
+
+The resulting reconstructed server root was recursively compared with RC1 `test-kit/server`. Every compared source file was byte-identical; the only tree difference was `.env.example`, which exists in the reconstructed V19 root and is intentionally absent from the packaged test-kit server.
+
+Reconstructed-root fingerprint excluding temporary `.dw-backups/`:
+- files: `159`
+- bytes: `997073`
+- sorted SHA-256 manifest aggregate: `d417fbad43607e9c3c26699ed1c00657c0e1972c8f7ce0309316838cbb26c333`
+
+Important: this proves one reproducible V19 -> V19.2 -> RC1 server candidate. It does not yet prove the current editable Work/Sites source is byte-identical to it.
+
+RC1 must not be force-applied to the current Git root: the RC1 guard expects the V19/V19.2 `0.11.0` package hash, while the reconciliation branch still inherits the stale `0.3.0` server root from `main`.
+
+Validation status:
+- RC1 package SHA/checksums: PASS
+- reconstructed V19.2 -> RC1 preflight/apply: PASS
+- source comparison with RC1 test-kit server: PASS, except the noted `.env.example` presence
+- `node --check scripts/workspace-command.mjs`: PASS
+- `node --check apply.mjs`: PASS
+- dependency-backed `npm ci`: NOT TESTED to completion; local offline cache lacks `youch-core@0.3.3` (`ENOTCACHED`)
+- full typecheck/build/validate on reconstructed root: NOT TESTED in this runtime
+- current editable Work/Sites source byte comparison: NOT TESTED because that source is not currently exposed to this runtime
+
+Next gate: compare the current Work/Sites source with the reconstructed-root fingerprint before replacing the stale Git root or merging to `main`.
