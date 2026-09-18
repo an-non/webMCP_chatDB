@@ -1,7 +1,7 @@
 /* Shared by the real content script, worker and their regression tests. */
 (() => {
   'use strict';
-  const RELEASE = 'v19.2-stabilization-rc1.2';
+  const RELEASE = 'v19.2-stabilization-rc1.2a';
   const MAX_COMMAND_BYTES = 800000; // Leaves room for JSON escaping and metadata.
   const START = '\u27e6DWCMD';
   const END = '\u27e6/DWCMD\u27e7';
