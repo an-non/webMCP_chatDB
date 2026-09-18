@@ -34,6 +34,7 @@
     if (message.type === 'dialog-bridge-page-context') {
       const assistants = DWAdapters.nodes(document, config);
       respond({ ok: true, result: { site: config.site, origin: location.origin, url: canonicalUrl(), title: document.title,
+        contentRelease: DWProtocol.RELEASE,
         adapterStatus: assistants.length ? statusText : 'assistant_dom_not_detected',
         selectedText: String(window.getSelection()?.toString() || ''),
         latestUser: document.querySelectorAll(config.users).length ? [...document.querySelectorAll(config.users)].at(-1).textContent : '',
@@ -78,37 +79,106 @@
     if (busyScan) { schedule(); return; }
     busyScan = true;
     try {
-      if (canonicalUrl() !== pageUrl) { pageUrl = canonicalUrl(); candidate = null; markHistory(); return; }
-      const state = await send('dialog-bridge-state', { pageUrl });
-      if (!state.enabled) { candidate = null; markHistory(); setStatus('auto_mode_off'); return; }
-      const jobs = state.jobs || []; const latest = jobs.at(-1);
-      if (latest) setStatus(`${latest.state}${latest.recordId ? ` ${latest.recordId}` : ''}${latest.error ? `: ${latest.error}` : ''}`);
-      const nodes = DWAdapters.nodes(document, config); const node = nodes.at(-1);
-      if (!node) { setStatus('assistant_dom_not_detected'); return; }
-      const text = DWAdapters.text(node);
-      const diagnostic = { release: DWProtocol.RELEASE, site: config.site, assistantNodeCount: nodes.length, hasSidecarStart: text.includes(DWProtocol.START), hasSidecarEnd: text.includes(DWProtocol.END), latestAssistantTail: text.slice(-600) };
-      if (!force && baseline.get(node) === text) { if (latest && !['verified','completed','blocked','exhausted','verification_failed'].includes(latest.state)) schedule(2000); return diagnostic; }
-      if (DWAdapters.busy(document, config)) { candidate = null; schedule(800); return { ...diagnostic, busy: true }; }
-      if (!force) {
-        if (!candidate || candidate.node !== node || candidate.text !== text) {
-          candidate = { node, text, since: Date.now() }; schedule(1600); return diagnostic;
-        }
-        if (Date.now() - candidate.since < 1500) { schedule(800); return diagnostic; }
+      const urlChanged = canonicalUrl() !== pageUrl;
+      if (urlChanged) {
+        pageUrl = canonicalUrl(); candidate = null;
+        if (!force) { markHistory(); return { scanStatus: 'page_changed_baseline_reset', forceScan: false, historyReplay: false }; }
       }
-      const parsed = DWProtocol.parseSidecar(text);
-      if (!parsed) { if (!force) baseline.set(node, text); candidate = null; return { ...diagnostic, parsed: false }; }
-      // Removing quoted/code examples must never silently shorten a save body.
-      const full = DWProtocol.parseSidecar(DWAdapters.text(node, true));
-      if (!full || full.command !== parsed.command) throw new Error('formatted_sidecar_payload_changed: use a plain-text block or file import');
+      const state = await send('dialog-bridge-state', { pageUrl });
+      if (!state.enabled) { candidate = null; markHistory(); setStatus('auto_mode_off'); return {
+        scanStatus: 'auto_mode_off', forceScan: force, historyReplay: force,
+        runtime: { contentRelease: DWProtocol.RELEASE, backgroundRelease: state.backgroundRelease, manifestVersion: state.manifestVersion },
+      }; }
+      const jobs = state.jobs || []; const latest = jobs.at(-1) || null;
+      if (latest) setStatus(`${latest.state}${latest.recordId ? ` ${latest.recordId}` : ''}${latest.error ? `: ${latest.error}` : ''}`);
+      const nodes = DWAdapters.nodes(document, config);
+      if (!nodes.length) { setStatus('assistant_dom_not_detected'); return {
+        scanStatus: 'assistant_dom_not_detected', forceScan: force, historyReplay: force, assistantNodeCount: 0,
+        runtime: { contentRelease: DWProtocol.RELEASE, backgroundRelease: state.backgroundRelease, manifestVersion: state.manifestVersion },
+        lastJob: latest,
+      }; }
+
+      const runtime = { contentRelease: DWProtocol.RELEASE, backgroundRelease: state.backgroundRelease, manifestVersion: state.manifestVersion,
+        reloadRequired: Boolean(state.backgroundRelease && state.backgroundRelease !== DWProtocol.RELEASE) };
+      if (runtime.reloadRequired) return { scanStatus: 'TAB_RELOAD_REQUIRED', forceScan: force, historyReplay: force,
+        runtime, assistantNodeCount: nodes.length, lastJob: latest };
+
+      const auth = force ? await send('dialog-agent-status').catch(error => ({ paired: false, reason: error.message || String(error) })) : null;
+      const candidates = force ? [...nodes].reverse() : [nodes.at(-1)];
+      const diagnostics = [];
+      let selected = null;
+
+      for (const node of candidates) {
+        const text = DWAdapters.text(node);
+        const diagnostic = { hasSidecarStart: text.includes(DWProtocol.START), hasSidecarEnd: text.includes(DWProtocol.END), latestAssistantTail: text.slice(-600) };
+        diagnostics.push(diagnostic);
+
+        if (!force && baseline.get(node) === text) {
+          if (latest && !['verified','completed','blocked','exhausted','verification_failed'].includes(latest.state)) schedule(2000);
+          return { scanStatus: 'unchanged', forceScan: false, historyReplay: false, runtime, auth, assistantNodeCount: nodes.length,
+            scannedNodeCount: 1, ...diagnostic, parsed: false, lastJob: latest };
+        }
+        if (DWAdapters.busy(document, config)) { candidate = null; schedule(800); return { scanStatus: 'assistant_busy', forceScan: force,
+          historyReplay: force, runtime, auth, assistantNodeCount: nodes.length, scannedNodeCount: diagnostics.length, ...diagnostic, busy: true, lastJob: latest }; }
+        if (!force) {
+          if (!candidate || candidate.node !== node || candidate.text !== text) {
+            candidate = { node, text, since: Date.now() }; schedule(1600); return { scanStatus: 'stabilizing', forceScan: false,
+              historyReplay: false, runtime, assistantNodeCount: nodes.length, scannedNodeCount: 1, ...diagnostic, parsed: false, lastJob: latest };
+          }
+          if (Date.now() - candidate.since < 1500) { schedule(800); return { scanStatus: 'stabilizing', forceScan: false,
+            historyReplay: false, runtime, assistantNodeCount: nodes.length, scannedNodeCount: 1, ...diagnostic, parsed: false, lastJob: latest }; }
+        }
+
+        let parsed;
+        try { parsed = DWProtocol.parseSidecar(text); }
+        catch (error) {
+          const markerAt = text.lastIndexOf(DWProtocol.START);
+          const diagnosticHead = markerAt >= 0 ? text.slice(markerAt, markerAt + 180) : text.slice(-180);
+          if (!force) throw error;
+          diagnostics[diagnostics.length - 1] = { ...diagnostic, parseError: error.message || String(error),
+            diagnosticCodePoints: [...diagnosticHead].slice(0, 120).map(char => `U+${char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0')}`) };
+          continue;
+        }
+        if (!parsed) {
+          if (!force) { baseline.set(node, text); candidate = null; return { scanStatus: 'no_sidecar', forceScan: false, historyReplay: false,
+            runtime, assistantNodeCount: nodes.length, scannedNodeCount: 1, ...diagnostic, parsed: false, lastJob: latest }; }
+          continue;
+        }
+
+        const full = DWProtocol.parseSidecar(DWAdapters.text(node, true));
+        if (!full || full.command !== parsed.command) {
+          const error = new Error('formatted_sidecar_payload_changed: use a plain-text block or file import');
+          if (!force) throw error;
+          diagnostics[diagnostics.length - 1] = { ...diagnostic, parseError: error.message };
+          continue;
+        }
+
+        let expectedJobId = null;
+        if (force) {
+          const actionKey = parsed.id || DWAdapters.messageId(node) || parsed.command;
+          expectedJobId = await DWProtocol.hash(`${location.origin}\0${pageUrl}\0${actionKey}`);
+          if (jobs.some(job => job.id === expectedJobId)) continue;
+        }
+        selected = { node, text, parsed, diagnostic, expectedJobId };
+        break;
+      }
+
+      if (!selected) {
+        if (!force) candidate = null;
+        const lastDiagnostic = diagnostics[0] || { hasSidecarStart: false, hasSidecarEnd: false, latestAssistantTail: '' };
+        return { scanStatus: force ? 'history_replay_no_unprocessed_sidecar' : 'no_sidecar', forceScan: force, historyReplay: force,
+          runtime, auth, assistantNodeCount: nodes.length, scannedNodeCount: diagnostics.length, ...lastDiagnostic,
+          parsed: false, lastJob: latest, diagnostics: force ? diagnostics : undefined };
+      }
+
       setStatus('queueing');
-      const result = await send('dialog-bridge-enqueue', { command: parsed.command, actionId: parsed.id,
-        messageId: DWAdapters.messageId(node), pageTitle: document.title });
-      // Conceal only a safely isolated sidecar block after durable enqueue succeeds.
-      // Never hide a block that also contains normal assistant prose.
-      concealSidecar(node);
-      // Mark only after durable enqueue succeeds; actual success is in outbox.
-      baseline.set(node, text); candidate = null; setStatus(result.state); schedule(2000);
-      return { ...diagnostic, parsed: true, enqueued: true, actionId: parsed.id, state: result.state };
+      const result = await send('dialog-bridge-enqueue', { command: selected.parsed.command, actionId: selected.parsed.id,
+        messageId: DWAdapters.messageId(selected.node), pageTitle: document.title });
+      concealSidecar(selected.node);
+      baseline.set(selected.node, selected.text); candidate = null; setStatus(result.state); schedule(2000);
+      return { scanStatus: 'enqueued', forceScan: force, historyReplay: force, runtime, auth,
+        assistantNodeCount: nodes.length, scannedNodeCount: diagnostics.length,
+        ...selected.diagnostic, parsed: true, enqueued: true, actionId: selected.parsed.id, state: result.state, lastJob: result };
     } finally { busyScan = false; }
   }
 
