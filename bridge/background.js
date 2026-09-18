@@ -48,7 +48,8 @@ async function handle(message, sender) {
   const trusted = String(sender.url || '').startsWith(chrome.runtime.getURL(''));
   const senderOrigin = origin(sender.url || sender.tab?.url);
   const pageOrigin = trusted ? origin(message?.pageOrigin) : senderOrigin;
-  if (!pageOrigin) throw new Error('unsupported_page_origin');
+  const trustedOriginOptional = trusted && ['dialog-agent-pair', 'dialog-agent-forget', 'dialog-bridge-runtime-info'].includes(message.type);
+  if (!pageOrigin && !trustedOriginOptional) throw new Error('unsupported_page_origin');
   if (!trusted && message.pageOrigin && message.pageOrigin !== pageOrigin) throw new Error('origin_mismatch');
   if (!trusted && sender.frameId && sender.frameId !== 0) throw new Error('top_frame_only');
   switch (message.type) {
@@ -161,7 +162,7 @@ async function status(pageOrigin) {
 }
 async function pair(code, pageOrigin) {
   if (typeof code !== 'string' || !code.trim()) throw new Error('pairing_code_required');
-  const result = await request('/api/agent/pair', { pairingCode: code.trim(), pageOrigin, clientName: `Dialog Workspace Bridge ${DWProtocol.RELEASE}` });
+  const result = await request('/api/agent/pair', { pairingCode: code.trim(), ...(pageOrigin ? { pageOrigin } : {}), clientName: `Dialog Workspace Bridge ${DWProtocol.RELEASE}` });
   if (!result.token) throw new Error('pair_response_missing_token');
   await mutateSessions(async () => {
     await chrome.storage.local.set({ [SHARED_SESSION_KEY]: {
